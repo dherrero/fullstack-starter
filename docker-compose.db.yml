@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  postgresdb:
+    image: postgres:15
+    container_name: nx-fullstack-starter-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRESDB_DATABASE:-your_db_name}
+      POSTGRES_USER: ${POSTGRESDB_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRESDB_PASSWORD:-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESDB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

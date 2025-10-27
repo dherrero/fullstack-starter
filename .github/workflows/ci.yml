@@ -1,0 +1,240 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Linting y formato
+  lint:
+    name: 🔍 Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Run ESLint
+        run: npm run lint
+
+      - name: 🎨 Check Prettier
+        run: npm run format:check
+
+  # Tests unitarios
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run Frontend Tests
+        run: npm run test:front -- --coverage --watchAll=false
+
+      - name: 🧪 Run Backend Tests
+        run: npm run test:back -- --coverage --watchAll=false
+
+      - name: 📊 Upload Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: true
+
+  # Build
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build Frontend
+        run: npm run build:front
+
+      - name: 🏗️ Build Backend
+        run: npm run build:back
+
+      - name: 📦 Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-files
+          path: |
+            dist/
+            apps/front/dist/
+            apps/back/dist/
+
+  # Tests E2E
+  e2e:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build applications
+        run: npm run build
+
+      - name: 🎭 Run E2E Tests
+        run: npm run e2e:front
+        env:
+          POSTGRESDB_HOST: localhost
+          POSTGRESDB_PORT: 5432
+          POSTGRESDB_DATABASE: test_db
+          POSTGRESDB_USER: postgres
+          POSTGRESDB_PASSWORD: postgres
+
+  # Security audit
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔒 Run Security Audit
+        run: npm audit --audit-level moderate || true
+        continue-on-error: true
+
+      - name: 📊 Generate Audit Report
+        run: npm audit --json > audit-report.json || true
+        continue-on-error: true
+
+      - name: 📤 Upload Audit Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-audit-report
+          path: audit-report.json
+
+  # Docker build test
+  docker:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Build Frontend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/front/Dockerfile
+          push: false
+          tags: nx-fullstack-starter-frontend:latest
+
+      - name: 🏗️ Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/back/Dockerfile
+          push: false
+          tags: nx-fullstack-starter-backend:latest
+
+  # Deploy (solo en main)
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, e2e, security, docker]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            ## 🚀 Release v${{ github.run_number }}
+
+            ### Changes
+            - Automated release from main branch
+
+            ### Build Info
+            - Commit: ${{ github.sha }}
+            - Workflow: ${{ github.workflow }}
+            - Run: ${{ github.run_number }}
+          draft: false
+          prerelease: false
+
+  # Notify on failure
+  notify:
+    name: 📢 Notify
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, e2e, security, docker]
+    if: failure()
+    steps:
+      - name: 📢 Notify Failure
+        run: |
+          echo "❌ CI/CD Pipeline failed!"
+          echo "Check the logs for more details."

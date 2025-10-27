@@ -1,0 +1,72 @@
+{
+  "welcome": {
+    "title": "Bienvenido",
+    "subtitle": "Sistema de Gestión",
+    "description": "Esta es una aplicación starter con autenticación y gestión de usuarios. Perfecta para comenzar nuevos proyectos con Angular y Node.js.",
+    "login": "Iniciar Sesión",
+    "loggedIn": {
+      "title": "¡Has iniciado sesión!",
+      "subtitle": "Bienvenido de vuelta a la aplicación",
+      "description": "Ahora puedes acceder a todas las funcionalidades disponibles.",
+      "viewProfile": "Ver Perfil",
+      "logout": "Cerrar Sesión"
+    }
+  },
+  "login": {
+    "title": "Iniciar Sesión",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "remember": "Recordarme",
+    "submit": "Entrar",
+    "errors": {
+      "required": "Este campo es obligatorio",
+      "email": "Por favor, introduce un correo electrónico válido",
+      "invalid": "Usuario o contraseña incorrectos"
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "update": "Actualizar",
+    "back": "Volver",
+    "confirm": "Confirmar",
+    "success": "Operación exitosa",
+    "error": "Ha ocurrido un error",
+    "close": "Cerrar",
+    "optional": "(opcional)"
+  },
+  "languages": {
+    "spanish": "Español",
+    "valencian": "Valencià",
+    "english": "English"
+  },
+  "permissions": {
+    "admin": "Administrador",
+    "writeEntity": "Escribir Entidad",
+    "readEntity": "Leer Entidad"
+  },
+  "user": {
+    "email": "Correo Electrónico",
+    "name": "Nombre",
+    "lastName": "Apellidos",
+    "permissions": "Permisos",
+    "password": "Contraseña",
+    "createUser": "Crear Usuario",
+    "editUser": "Editar Usuario",
+    "emailRequired": "El correo electrónico es obligatorio",
+    "emailInvalid": "Por favor, introduce un correo electrónico válido",
+    "nameRequired": "El nombre es obligatorio",
+    "lastNameRequired": "Los apellidos son obligatorios",
+    "permissionsRequired": "Debe seleccionar al menos un permiso",
+    "passwordRequired": "La contraseña es obligatoria",
+    "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
+    "passwordOptional": "Dejar en blanco para mantener la contraseña actual"
+  },
+  "search": {
+    "selectType": "Seleccionar tipo"
+  }
+}

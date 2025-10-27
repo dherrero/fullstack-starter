@@ -1,0 +1,10 @@
+:host {
+  .login {
+    height: 100vh;
+    .card {
+      width: 80vh;
+      max-width: 500px;
+      height: fit-content;
+    }
+  }
+}

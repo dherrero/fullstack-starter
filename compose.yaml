@@ -1,0 +1,63 @@
+name: nx-fullstack-starter
+services:
+  postgresdb:
+    image: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRESDB_USER}
+      - POSTGRES_PASSWORD=${POSTGRESDB_PASSWORD}
+      - POSTGRES_DB=${POSTGRESDB_DATABASE}
+    volumes:
+      - starter-postgresdb:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    networks:
+      - back-starter-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRESDB_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  back:
+    depends_on:
+      - postgresdb
+    build:
+      context: .
+      dockerfile: apps/back/Dockerfile
+    container_name: back
+    restart: unless-stopped
+    environment:
+      - NODE_PORT=${NODE_PORT:-3200}
+      - POSTGRESDB_USER=${POSTGRESDB_USER}
+      - POSTGRESDB_PASSWORD=${POSTGRESDB_PASSWORD}
+      - POSTGRESDB_DATABASE=${POSTGRESDB_DATABASE}
+      - POSTGRESDB_PORT=${POSTGRESDB_PORT:-5432}
+      - POSTGRESDB_HOST=postgresdb
+      - NODE_JWT_SECRET=${NODE_JWT_SECRET}
+      - NODE_JWT_ACCESS_EXPIRES_IN=${NODE_JWT_ACCESS_EXPIRES_IN}
+      - NODE_JWT_REFRESH_EXPIRES_IN=${NODE_JWT_REFRESH_EXPIRES_IN}
+      - NODE_HASH_SALT_ROUNDS=${NODE_HASH_SALT_ROUNDS}
+      - NODE_PRODUCTION=${NODE_PRODUCTION}
+      - NODE_UPLOAD_FILES=${NODE_UPLOAD_FILES:-uploads}
+    ports:
+      - '${NODE_PORT:-3200}'
+    networks:
+      - back-starter-network
+    volumes:
+      - upload_files:/home/back/${NODE_UPLOAD_FILES}
+      - tmp:/tmp
+  front:
+    build:
+      context: .
+      dockerfile: apps/front/Dockerfile
+    container_name: front
+    depends_on:
+      - back
+    restart: unless-stopped
+
+volumes:
+  starter-postgresdb:
+  upload_files:
+  tmp:
+
+networks:
+  back-starter-network:

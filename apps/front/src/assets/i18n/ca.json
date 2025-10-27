@@ -1,0 +1,72 @@
+{
+  "welcome": {
+    "title": "Benvingut",
+    "subtitle": "Sistema de Gestió",
+    "description": "Aquesta és una aplicació starter amb autenticació i gestió d'usuaris. Perfecta per començar nous projectes amb Angular i Node.js.",
+    "login": "Iniciar Sessió",
+    "loggedIn": {
+      "title": "Has iniciat sessió!",
+      "subtitle": "Benvingut de nou a l'aplicació",
+      "description": "Ara pots accedir a totes les funcionalitats disponibles.",
+      "viewProfile": "Veure Perfil",
+      "logout": "Tancar Sessió"
+    }
+  },
+  "login": {
+    "title": "Iniciar Sessió",
+    "email": "Correu Electrònic",
+    "password": "Contrasenya",
+    "remember": "Recordar-me",
+    "submit": "Entrar",
+    "errors": {
+      "required": "Aquest camp és obligatori",
+      "email": "Si us plau, introdueix un correu electrònic vàlid",
+      "invalid": "Usuari o contrasenya incorrectes"
+    }
+  },
+  "common": {
+    "loading": "Carregant...",
+    "save": "Guardar",
+    "cancel": "Cancel·lar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "update": "Actualitzar",
+    "back": "Tornar",
+    "confirm": "Confirmar",
+    "success": "Operació exitosa",
+    "error": "Ha ocorregut un error",
+    "close": "Tancar",
+    "optional": "(opcional)"
+  },
+  "languages": {
+    "spanish": "Español",
+    "valencian": "Valencià",
+    "english": "English"
+  },
+  "permissions": {
+    "admin": "Administrador",
+    "writeEntity": "Escriure Entitat",
+    "readEntity": "Llegir Entitat"
+  },
+  "user": {
+    "email": "Correu Electrònic",
+    "name": "Nom",
+    "lastName": "Cognoms",
+    "permissions": "Permisos",
+    "password": "Contrasenya",
+    "createUser": "Crear Usuari",
+    "editUser": "Editar Usuari",
+    "emailRequired": "El correu electrònic és obligatori",
+    "emailInvalid": "Si us plau, introdueix un correu electrònic vàlid",
+    "nameRequired": "El nom és obligatori",
+    "lastNameRequired": "Els cognoms són obligatoris",
+    "permissionsRequired": "Ha de seleccionar almenys un permís",
+    "passwordRequired": "La contrasenya és obligatòria",
+    "passwordMinLength": "La contrasenya ha de tenir almenys 6 caràcters",
+    "passwordOptional": "Deixar en blanc per mantenir la contrasenya actual"
+  },
+  "search": {
+    "selectType": "Seleccionar tipus"
+  }
+}

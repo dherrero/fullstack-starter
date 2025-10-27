@@ -1,0 +1,72 @@
+{
+  "welcome": {
+    "title": "Welcome",
+    "subtitle": "Management System",
+    "description": "This is a starter application with authentication and user management. Perfect for starting new projects with Angular and Node.js.",
+    "login": "Sign In",
+    "loggedIn": {
+      "title": "You have signed in!",
+      "subtitle": "Welcome back to the application",
+      "description": "You can now access all available features.",
+      "viewProfile": "View Profile",
+      "logout": "Sign Out"
+    }
+  },
+  "login": {
+    "title": "Sign In",
+    "email": "Email Address",
+    "password": "Password",
+    "remember": "Remember me",
+    "submit": "Sign In",
+    "errors": {
+      "required": "This field is required",
+      "email": "Please enter a valid email address",
+      "invalid": "Invalid username or password"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "back": "Back",
+    "confirm": "Confirm",
+    "success": "Operation successful",
+    "error": "An error has occurred",
+    "close": "Close",
+    "optional": "(optional)"
+  },
+  "languages": {
+    "spanish": "Español",
+    "valencian": "Valencià",
+    "english": "English"
+  },
+  "permissions": {
+    "admin": "Administrator",
+    "writeEntity": "Write Entity",
+    "readEntity": "Read Entity"
+  },
+  "user": {
+    "email": "Email Address",
+    "name": "First Name",
+    "lastName": "Last Name",
+    "permissions": "Permissions",
+    "password": "Password",
+    "createUser": "Create User",
+    "editUser": "Edit User",
+    "emailRequired": "Email address is required",
+    "emailInvalid": "Please enter a valid email address",
+    "nameRequired": "First name is required",
+    "lastNameRequired": "Last name is required",
+    "permissionsRequired": "You must select at least one permission",
+    "passwordRequired": "Password is required",
+    "passwordMinLength": "Password must be at least 6 characters long",
+    "passwordOptional": "Leave blank to keep current password"
+  },
+  "search": {
+    "selectType": "Select type"
+  }
+}

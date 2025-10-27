@@ -1,0 +1,245 @@
+{
+  "folders": [
+    {
+      "name": "Root",
+      "path": "."
+    },
+    {
+      "name": "Frontend",
+      "path": "./apps/front"
+    },
+    {
+      "name": "Backend",
+      "path": "./apps/back"
+    },
+    {
+      "name": "Shared DTOs",
+      "path": "./libs/rest-dto"
+    },
+    {
+      "name": "DB",
+      "path": "./db"
+    },
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.organizeImports": "explicit"
+    },
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "typescript.suggest.autoImports": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "angular.enable-strict-mode-prompt": false,
+    "angular.suggest.includeCompletionsWithSnippetText": true,
+    "angular.suggest.includeAutomaticOptionalChainCompletions": true,
+    "files.associations": {
+      "*.html": "html",
+      "*.scss": "scss",
+      "*.css": "css",
+      "*.json": "json",
+      "*.md": "markdown",
+      "*.yml": "yaml",
+      "*.yaml": "yaml"
+    },
+    "emmet.includeLanguages": {
+      "typescript": "html"
+    },
+    "emmet.triggerExpansionOnTab": true,
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.angular": true,
+      "**/.nx": true,
+      "**/tmp": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.angular": true,
+      "**/.nx": true,
+      "**/tmp": true
+    },
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "eslint.validate": [
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact"
+    ],
+    "eslint.workingDirectories": ["apps/front", "apps/back", "libs/rest-dto"],
+    "prettier.configPath": ".prettierrc",
+    "prettier.requireConfig": true,
+    "editor.rulers": [80, 120],
+    "editor.wordWrap": "on",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "git.enableSmartCommit": true,
+    "git.confirmSync": false,
+    "git.autofetch": true,
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "workbench.colorTheme": "Default Dark+",
+    "explorer.confirmDelete": false,
+    "explorer.confirmDragAndDrop": false,
+    "breadcrumbs.enabled": true,
+    "outline.showVariables": true,
+    "outline.showFunctions": true,
+    "outline.showClasses": true,
+    "outline.showModules": true,
+    "outline.showNamespaces": true,
+    "outline.showEnums": true,
+    "outline.showInterfaces": true,
+    "outline.showTypeAliases": true,
+    "outline.showConstants": true,
+    "outline.showEvents": true,
+    "outline.showOperators": true,
+    "outline.showTypeParameters": true
+  },
+  "extensions": {
+    "recommendations": [
+      "angular.ng-template",
+      "ms-vscode.vscode-typescript-next",
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-eslint",
+      "nrwl.angular-console",
+      "ms-vscode.vscode-json",
+      "redhat.vscode-yaml",
+      "ms-vscode.vscode-docker",
+      "ms-vscode.vscode-git-graph",
+      "eamodio.gitlens",
+      "ms-vscode.vscode-jest",
+      "formulahendry.auto-rename-tag",
+      "christian-kohler.path-intellisense",
+      "ms-vscode.vscode-npm-script"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Start Development",
+        "type": "shell",
+        "command": "npm run dev",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Start Frontend",
+        "type": "shell",
+        "command": "npm run start:front",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Start Backend",
+        "type": "shell",
+        "command": "npm run start:back",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Start Database",
+        "type": "shell",
+        "command": "npm run dev:db",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Run Tests",
+        "type": "shell",
+        "command": "npm run test",
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Run Lint",
+        "type": "shell",
+        "command": "npm run lint",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Build All",
+        "type": "shell",
+        "command": "npm run build",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Frontend",
+        "type": "chrome",
+        "request": "launch",
+        "url": "http://localhost:4200",
+        "webRoot": "${workspaceFolder}/apps/front/src",
+        "sourceMaps": true
+      },
+      {
+        "name": "Debug Backend",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/apps/back/src/main.ts",
+        "env": {
+          "NODE_ENV": "development"
+        },
+        "console": "integratedTerminal",
+        "restart": true,
+        "protocol": "inspector"
+      }
+    ]
+  }
+}

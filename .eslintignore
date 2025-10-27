@@ -1,0 +1,13 @@
+node_modules
+/.nx/cache
+/.nx/workspace-data
+/.angular
+/dist
+/coverage
+/tmp
+/logs
+/pids
+/seeds
+/pids.lock
+/pids.lock.lock
+/pids.lock.lock.lock

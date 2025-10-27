@@ -1,0 +1,8 @@
+# Format staged files with prettier
+npx lint-staged
+
+# Run linting on all projects
+npm run lint
+
+# Run all tests
+npm test

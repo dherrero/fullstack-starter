@@ -1,0 +1,73 @@
+<div class="container-fluid vh-100 d-flex flex-column">
+  <!-- Header con selector de idioma -->
+  <div class="row">
+    <div class="col-12 d-flex justify-content-end p-3">
+      <app-language-switcher></app-language-switcher>
+    </div>
+  </div>
+
+  <!-- Contenido principal centrado -->
+  <div class="row flex-grow-1 d-flex align-items-center justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6 text-center">
+      <!-- Card para usuarios NO logueados -->
+      <div *appIfLoggedIn="false" class="card border-0 shadow-lg">
+        <div class="card-body p-5">
+          <h1 class="display-4 fw-bold text-primary mb-4">
+            {{ 'welcome.title' | transloco }}
+          </h1>
+
+          <p class="lead text-muted mb-4">
+            {{ 'welcome.subtitle' | transloco }}
+          </p>
+
+          <p class="text-muted mb-5">
+            {{ 'welcome.description' | transloco }}
+          </p>
+
+          <button
+            class="btn btn-primary btn-lg px-5 py-3"
+            (click)="goToLogin()"
+            type="button"
+          >
+            {{ 'welcome.login' | transloco }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Card para usuarios logueados -->
+      <div *appIfLoggedIn="true" class="card border-0 shadow-lg">
+        <div class="card-body p-5">
+          <div class="text-center mb-4">
+            <i
+              class="bi bi-check-circle-fill text-success"
+              style="font-size: 4rem"
+            ></i>
+          </div>
+
+          <h1 class="display-4 fw-bold text-success mb-4">
+            {{ 'welcome.loggedIn.title' | transloco }}
+          </h1>
+
+          <p class="lead text-muted mb-4">
+            {{ 'welcome.loggedIn.subtitle' | transloco }}
+          </p>
+
+          <p class="text-muted mb-5">
+            {{ 'welcome.loggedIn.description' | transloco }}
+          </p>
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+            <button
+              class="btn btn-danger btn-lg px-4 py-3"
+              (click)="logout()"
+              type="button"
+            >
+              <i class="bi bi-box-arrow-right me-2"></i>
+              {{ 'welcome.loggedIn.logout' | transloco }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

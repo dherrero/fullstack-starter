@@ -1,0 +1,14 @@
+# Add files here to ignore them from prettier formatting
+/dist
+/coverage
+/.nx/cache
+/.nx/workspace-data
+/.angular
+/tmp
+/logs
+/pids
+/seeds
+/pids.lock
+/pids.lock.lock
+/pids.lock.lock.lock
+.angular

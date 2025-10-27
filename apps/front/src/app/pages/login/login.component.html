@@ -1,0 +1,98 @@
+<div class="row login">
+  <div
+    class="col-12 d-flex flex-colum justify-content-center align-items-center"
+  >
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ 'login.title' | transloco }}</h5>
+        <form
+          class="p-5 row flex-colum justify-content-center"
+          [formGroup]="login"
+        >
+          <div class="col-12 mb-3">
+            <label for="InputEmail1" class="form-label">{{
+              'login.email' | transloco
+            }}</label>
+            <input
+              type="email"
+              class="form-control"
+              id="InputEmail"
+              formControlName="email"
+              [class.is-invalid]="
+                login.get('email')?.invalid && login.get('email')?.touched
+              "
+            />
+            @if (login.get('email')?.invalid && login.get('email')?.touched) {
+            <div class="invalid-feedback">
+              @if (login.get('email')?.errors?.['required']) {
+              {{ 'login.errors.required' | transloco }}
+              } @else if (login.get('email')?.errors?.['email']) {
+              {{ 'login.errors.email' | transloco }}
+              }
+            </div>
+            }
+          </div>
+          <div class="col-12 mb-3">
+            <label for="InputPassword" class="form-label">{{
+              'login.password' | transloco
+            }}</label>
+            <input
+              type="password"
+              class="form-control"
+              id="InputPassword"
+              formControlName="password"
+              [class.is-invalid]="
+                login.get('password')?.invalid && login.get('password')?.touched
+              "
+            />
+            @if (login.get('password')?.invalid &&
+            login.get('password')?.touched) {
+            <div class="invalid-feedback">
+              {{ 'login.errors.required' | transloco }}
+            </div>
+            }
+          </div>
+          <div class="col-12 mb-3">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="flexCheckDefault"
+                formControlName="remember"
+              />
+              <label class="form-check-label" for="flexCheckDefault">
+                {{ 'login.remember' | transloco }}
+              </label>
+            </div>
+          </div>
+          @if (error.length > 0) {
+          <div class="col-12 mb-3">
+            <div class="alert alert-danger" role="alert">
+              @for (errorMsg of error; track errorMsg) {
+              <div>{{ errorMsg }}</div>
+              }
+            </div>
+          </div>
+          }
+          <div class="col-12 d-flex justify-content-center mt-4">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              (click)="doLogin()"
+              [disabled]="loading"
+            >
+              @if (loading) {
+              <span
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              }
+              {{ 'login.submit' | transloco }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
