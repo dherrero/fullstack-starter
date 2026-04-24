@@ -72,5 +72,6 @@
         "extensions": ["ts", "tsx", "js", "jsx", "html", "vue"]
       }
     }
-  ]
+  ],
+  "analytics": false
 }

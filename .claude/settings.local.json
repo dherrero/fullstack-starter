@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls *)",
+      "Bash(npm --version)",
+      "Bash(npx nx *)",
+      "Bash(npm outdated *)",
+      "Bash(npm audit *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); vulns=d.get\\('vulnerabilities',{}\\); [print\\(f'{k}: {v[\\\\\"severity\\\\\"]} \\({len\\(v.get\\(\\\\\"via\\\\\",[]\\)\\)} advisories\\)'\\) for k,v in vulns.items\\(\\)]\")",
+      "Bash(xargs cat *)",
+      "Bash(npm info *)",
+      "Bash(npm install *)",
+      "Bash(npx ng *)",
+      "Bash(node -e \"const p=require\\('./node_modules/@angular/core/package.json'\\); console.log\\('@angular/core:', p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/@angular/cli/package.json'\\); console.log\\('@angular/cli:', p.version\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/sequelize/package.json'\\); console.log\\('sequelize:', p.version\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); exports=p.get\\('exports',{}\\); [print\\(k,':',v\\) for k,v in list\\(exports.items\\(\\)\\)[:10]]\")"
+    ]
+  }
+}

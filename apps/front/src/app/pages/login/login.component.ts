@@ -54,16 +54,18 @@ export default class LoginComponent implements OnInit {
         .pipe(
           tap(() => {
             this.loading = false;
-            this.redirectUrl
-              ? this.router.navigateByUrl(this.redirectUrl, {})
-              : this.router.navigateByUrl('');
+            if (this.redirectUrl) {
+              this.router.navigateByUrl(this.redirectUrl, {});
+            } else {
+              this.router.navigateByUrl('');
+            }
           }),
           catchError((error) => {
             this.loading = false;
             const errorMessage = error.error?.error || 'login.errors.invalid';
             this.error = [this.translocoService.translate(errorMessage)];
             return of(null);
-          })
+          }),
         )
         .subscribe();
     }

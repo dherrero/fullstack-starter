@@ -15,14 +15,11 @@
   </p>
 </div>
 <div class="modal-footer">
-  <button
-    *ngIf="cancelText"
-    type="button"
-    class="btn btn-secondary"
-    (click)="cancel()"
-  >
-    {{ cancelText }}
-  </button>
+  @if (cancelText) {
+    <button type="button" class="btn btn-secondary" (click)="cancel()">
+      {{ cancelText }}
+    </button>
+  }
   <button type="button" class="btn btn-primary" (click)="confirm()">
     {{ confirmText }}
   </button>
