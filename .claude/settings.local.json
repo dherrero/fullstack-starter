@@ -44,7 +44,11 @@
       "Bash(xxd .husky/pre-commit)",
       "Bash(git config *)",
       "Bash(chmod 755 .husky/pre-commit)",
-      "Bash(git update-index *)"
+      "Bash(git update-index *)",
+      "Edit(.claude/agents/*)",
+      "Write(.claude/agents/*)",
+      "Edit(.claude/skills/*)",
+      "Write(.claude/skills/*)"
     ],
     "deny": [
       "Bash(rm -rf*)",
