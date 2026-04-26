@@ -40,7 +40,11 @@
       "Write(*)",
       "Edit(*)",
       "Read(*)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(xxd .husky/pre-commit)",
+      "Bash(git config *)",
+      "Bash(chmod 755 .husky/pre-commit)",
+      "Bash(git update-index *)"
     ],
     "deny": [
       "Bash(rm -rf*)",
@@ -51,10 +55,6 @@
       "Bash(wget * | sh*)",
       "Bash(git push origin main*)",
       "Bash(git push origin master*)"
-    ],
-    "additionalDirectories": [
-      "/home/dherr/repos/Claude-Code-Dev-Studio",
-      "/home/dherr/repos/fullstack_starter"
     ]
   }
 }
