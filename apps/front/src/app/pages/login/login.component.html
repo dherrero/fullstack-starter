@@ -23,13 +23,13 @@
               "
             />
             @if (login.get('email')?.invalid && login.get('email')?.touched) {
-            <div class="invalid-feedback">
-              @if (login.get('email')?.errors?.['required']) {
-              {{ 'login.errors.required' | transloco }}
-              } @else if (login.get('email')?.errors?.['email']) {
-              {{ 'login.errors.email' | transloco }}
-              }
-            </div>
+              <div class="invalid-feedback">
+                @if (login.get('email')?.errors?.['required']) {
+                  {{ 'login.errors.required' | transloco }}
+                } @else if (login.get('email')?.errors?.['email']) {
+                  {{ 'login.errors.email' | transloco }}
+                }
+              </div>
             }
           </div>
           <div class="col-12 mb-3">
@@ -45,11 +45,12 @@
                 login.get('password')?.invalid && login.get('password')?.touched
               "
             />
-            @if (login.get('password')?.invalid &&
-            login.get('password')?.touched) {
-            <div class="invalid-feedback">
-              {{ 'login.errors.required' | transloco }}
-            </div>
+            @if (
+              login.get('password')?.invalid && login.get('password')?.touched
+            ) {
+              <div class="invalid-feedback">
+                {{ 'login.errors.required' | transloco }}
+              </div>
             }
           </div>
           <div class="col-12 mb-3">
@@ -66,13 +67,13 @@
             </div>
           </div>
           @if (error.length > 0) {
-          <div class="col-12 mb-3">
-            <div class="alert alert-danger" role="alert">
-              @for (errorMsg of error; track errorMsg) {
-              <div>{{ errorMsg }}</div>
-              }
+            <div class="col-12 mb-3">
+              <div class="alert alert-danger" role="alert">
+                @for (errorMsg of error; track errorMsg) {
+                  <div>{{ errorMsg }}</div>
+                }
+              </div>
             </div>
-          </div>
           }
           <div class="col-12 d-flex justify-content-center mt-4">
             <button
@@ -82,11 +83,11 @@
               [disabled]="loading"
             >
               @if (loading) {
-              <span
-                class="spinner-border spinner-border-sm me-2"
-                role="status"
-                aria-hidden="true"
-              ></span>
+                <span
+                  class="spinner-border spinner-border-sm me-2"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
               }
               {{ 'login.submit' | transloco }}
             </button>

@@ -62,7 +62,7 @@ class AuthController {
         return HttpResponser.errorJson(
           res,
           { message: `Access denied: No refresh token code: ${randomCode}0` },
-          401
+          401,
         );
       }
 
@@ -73,7 +73,7 @@ class AuthController {
           req,
           res,
           next,
-          requiredPermission
+          requiredPermission,
         );
       }
 
@@ -92,7 +92,7 @@ class AuthController {
             {
               message: `Access denied: Insufficient permissions code: ${randomCode}2`,
             },
-            401
+            401,
           );
         }
 
@@ -105,13 +105,13 @@ class AuthController {
             req,
             res,
             next,
-            requiredPermission
+            requiredPermission,
           );
         } else {
           return HttpResponser.errorJson(
             res,
             { message: 'Invalid token' },
-            401
+            401,
           );
         }
       }
@@ -119,7 +119,7 @@ class AuthController {
 
   #checkPermissions(
     userPermissions: Permission[],
-    requiredPermission: Permission | Permission[]
+    requiredPermission: Permission | Permission[],
   ): boolean {
     if (!userPermissions || !Array.isArray(userPermissions)) {
       return false;
@@ -136,14 +136,14 @@ class AuthController {
     req: Request,
     res: Response,
     next: NextFunction,
-    requiredPermission?: Permission | Permission[]
+    requiredPermission?: Permission | Permission[],
   ) => {
     const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
       return HttpResponser.errorJson(
         res,
         { message: 'Access Denied. No refresh token provided.' },
-        401
+        401,
       );
     }
 
@@ -165,7 +165,7 @@ class AuthController {
         return HttpResponser.errorJson(
           res,
           { message: 'Access denied: Insufficient permissions' },
-          401
+          401,
         );
       }
 
@@ -179,11 +179,11 @@ class AuthController {
   #responseWithTokens = async (
     res: Response,
     userData,
-    next?: NextFunction
+    next?: NextFunction,
   ) => {
     const accessToken = await authService.generateToken(
       userData,
-      process.env.JWT_EXPIRES_IN || '4h'
+      process.env.JWT_EXPIRES_IN || '4h',
     );
     res.setHeader('Authorization', accessToken);
 
@@ -191,7 +191,7 @@ class AuthController {
       // If next is not defined, then it means that the request is a login request, so we need to send the refresh token
       const refreshToken = await authService.generateToken(
         { id: userData.id, remember: userData.remember },
-        userData.remember ? '365d' : process.env.JWT_REFRESH_EXPIRES_IN || '8h'
+        userData.remember ? '365d' : process.env.JWT_REFRESH_EXPIRES_IN || '8h',
       );
 
       // Send RefreshToken as HttpOnly Secure cookie

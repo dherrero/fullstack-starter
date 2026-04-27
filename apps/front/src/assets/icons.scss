@@ -11,7 +11,8 @@ $lni-font-path: './fonts' !default;
 @font-face {
   font-family: 'lineicons';
   src: url('#{$lni-font-path}/lineicons.eot');
-  src: url('#{$lni-font-path}/lineicons.eot') format('embedded-opentype'),
+  src:
+    url('#{$lni-font-path}/lineicons.eot') format('embedded-opentype'),
     url('#{$lni-font-path}/lineicons.woff2') format('woff2'),
     url('#{$lni-font-path}/lineicons.woff') format('woff'),
     url('#{$lni-font-path}/lineicons.ttf') format('truetype'),

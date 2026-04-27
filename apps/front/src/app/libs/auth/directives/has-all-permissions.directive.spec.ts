@@ -50,7 +50,7 @@ describe('HasAllPermissionsDirective', () => {
     ];
 
     expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-      mockTemplateRef
+      mockTemplateRef,
     );
     expect(mockAuthService.hasAllPermissions).toHaveBeenCalledWith([
       Permission.ADMIN,
@@ -75,7 +75,7 @@ describe('HasAllPermissionsDirective', () => {
     directive.hasAllPermissions = Permission.ADMIN;
 
     expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-      mockTemplateRef
+      mockTemplateRef,
     );
     expect(mockAuthService.hasAllPermissions).toHaveBeenCalledWith([
       Permission.ADMIN,
@@ -117,7 +117,7 @@ describe('HasAllPermissionsDirective', () => {
     ];
 
     expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-      mockTemplateRef
+      mockTemplateRef,
     );
     expect(mockAuthService.hasAllPermissions).toHaveBeenCalledWith([
       Permission.ADMIN,

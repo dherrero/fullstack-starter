@@ -47,10 +47,10 @@ describe('HasPermissionDirective', () => {
     directive.hasPermission = Permission.ADMIN;
 
     expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-      mockTemplateRef
+      mockTemplateRef,
     );
     expect(mockAuthService.hasPermission).toHaveBeenCalledWith(
-      Permission.ADMIN
+      Permission.ADMIN,
     );
   });
 
@@ -61,7 +61,7 @@ describe('HasPermissionDirective', () => {
 
     expect(mockViewContainer.createEmbeddedView).not.toHaveBeenCalled();
     expect(mockAuthService.hasPermission).toHaveBeenCalledWith(
-      Permission.ADMIN
+      Permission.ADMIN,
     );
   });
 
@@ -79,7 +79,7 @@ describe('HasPermissionDirective', () => {
     directive.hasPermission = Permission.ADMIN;
 
     expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-      mockTemplateRef
+      mockTemplateRef,
     );
 
     // Then hide content by changing permission
@@ -88,7 +88,7 @@ describe('HasPermissionDirective', () => {
 
     expect(mockViewContainer.clear).toHaveBeenCalled();
     expect(mockAuthService.hasPermission).toHaveBeenCalledWith(
-      Permission.READ_SOME_ENTITY
+      Permission.READ_SOME_ENTITY,
     );
   });
 
@@ -98,10 +98,10 @@ describe('HasPermissionDirective', () => {
     directive.hasPermission = Permission.WRITE_SOME_ENTITY;
 
     expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-      mockTemplateRef
+      mockTemplateRef,
     );
     expect(mockAuthService.hasPermission).toHaveBeenCalledWith(
-      Permission.WRITE_SOME_ENTITY
+      Permission.WRITE_SOME_ENTITY,
     );
   });
 });

@@ -48,7 +48,7 @@ describe('Database Error Middleware', () => {
 
     // Mock Date.toISOString to have consistent timestamps in tests
     vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(
-      '2025-10-27T12:00:00.000Z'
+      '2025-10-27T12:00:00.000Z',
     );
   });
 
@@ -61,7 +61,7 @@ describe('Database Error Middleware', () => {
       dbErrorMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -78,7 +78,7 @@ describe('Database Error Middleware', () => {
       dbErrorMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -108,7 +108,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -134,7 +134,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -165,7 +165,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -196,7 +196,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -223,7 +223,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -249,7 +249,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -271,7 +271,7 @@ describe('Database Error Middleware', () => {
         error,
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -298,14 +298,14 @@ describe('Database Error Middleware', () => {
           error,
           mockRequest as Request,
           mockResponse as Response,
-          mockNext
+          mockNext,
         );
 
         expect(statusMock).toHaveBeenCalledWith(503);
         expect(jsonMock).toHaveBeenCalledWith(
           expect.objectContaining({
             code: 'DB_CONNECTION_ERROR',
-          })
+          }),
         );
       });
     });
@@ -323,7 +323,7 @@ describe('Database Error Middleware', () => {
       dbLoggingMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Assert
@@ -343,7 +343,7 @@ describe('Database Error Middleware', () => {
       dbLoggingMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Simulate sending response
@@ -358,7 +358,7 @@ describe('Database Error Middleware', () => {
           timestamp: '2025-10-27T12:00:00.000Z',
           userAgent: 'Test User Agent',
           ip: '127.0.0.1',
-        }
+        },
       );
     });
 
@@ -373,7 +373,7 @@ describe('Database Error Middleware', () => {
       dbLoggingMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       mockResponse.send({ error: 'Bad request' });
@@ -392,7 +392,7 @@ describe('Database Error Middleware', () => {
       dbLoggingMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       mockResponse.send(testData);
@@ -415,14 +415,14 @@ describe('Database Error Middleware', () => {
         dbLoggingMiddleware(
           mockRequest as Request,
           mockResponse as Response,
-          mockNext
+          mockNext,
         );
 
         mockResponse.send({ error: 'Error' });
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           expect.stringContaining('Database error'),
-          expect.objectContaining({ statusCode })
+          expect.objectContaining({ statusCode }),
         );
       });
     });

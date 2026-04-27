@@ -9,7 +9,7 @@ import { map, switchMap, take } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 export const canActivateWithPermission = (
-  requiredPermission: Permission
+  requiredPermission: Permission,
 ): CanActivateFn => {
   return (next: ActivatedRouteSnapshot) => {
     const authService = inject(AuthService);
@@ -28,13 +28,13 @@ export const canActivateWithPermission = (
         }
 
         return true;
-      })
+      }),
     );
   };
 };
 
 export const canActivateWithAnyPermission = (
-  requiredPermissions: Permission[]
+  requiredPermissions: Permission[],
 ): CanActivateFn => {
   return (next: ActivatedRouteSnapshot) => {
     const authService = inject(AuthService);
@@ -52,13 +52,13 @@ export const canActivateWithAnyPermission = (
         }
 
         return true;
-      })
+      }),
     );
   };
 };
 
 export const canActivateWithAllPermissions = (
-  requiredPermissions: Permission[]
+  requiredPermissions: Permission[],
 ): CanActivateFn => {
   return (next: ActivatedRouteSnapshot) => {
     const authService = inject(AuthService);
@@ -76,7 +76,7 @@ export const canActivateWithAllPermissions = (
         }
 
         return true;
-      })
+      }),
     );
   };
 };
