@@ -4,7 +4,7 @@ import {
 } from '@angular/common/http';
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideTransloco } from '@ngneat/transloco';
+import { provideTransloco } from '@jsverse/transloco';
 import { env } from '../environments/environment';
 import { appRoutes } from './app.routes';
 import {

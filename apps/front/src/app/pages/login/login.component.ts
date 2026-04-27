@@ -3,7 +3,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Router, RouterModule } from '@angular/router';
-import { TranslocoModule, TranslocoService } from '@ngneat/transloco';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 
 import { Login } from '@front/app/libs/auth/auth.interface';
 import { AuthService } from '@front/app/libs/auth/services/auth.service';

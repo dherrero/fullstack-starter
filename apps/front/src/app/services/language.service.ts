@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { TranslocoService } from '@ngneat/transloco';
+import { TranslocoService } from '@jsverse/transloco';
 import { BehaviorSubject } from 'rxjs';
 import {
   AVAILABLE_LANGUAGES,
@@ -12,12 +12,12 @@ import {
 export class LanguageService {
   private readonly STORAGE_KEY = 'transloco-lang';
   private readonly AVAILABLE_LANGS = AVAILABLE_LANGUAGES.map(
-    (lang) => lang.code
+    (lang) => lang.code,
   );
   private readonly DEFAULT_LANG = DEFAULT_LANGUAGE;
 
   private currentLangSubject = new BehaviorSubject<string>(
-    this.getStoredLanguage()
+    this.getStoredLanguage(),
   );
   public currentLang$ = this.currentLangSubject.asObservable();
 

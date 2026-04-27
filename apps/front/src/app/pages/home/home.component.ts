@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { LanguageSwitcherComponent } from '@front/app/components/language-switcher/language-switcher.component';
 import { IfLoggedInDirective } from '@front/app/libs/auth/directives';
 import { AuthService } from '@front/app/libs/auth/services/auth.service';
-import { TranslocoModule } from '@ngneat/transloco';
+import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-home',
