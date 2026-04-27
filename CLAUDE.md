@@ -34,6 +34,7 @@ This replaces the `nx-fullstack-starter` placeholder across `package.json`, `com
 | `database-specialist` | `.claude/agents/database-specialist.md` | Schema design, SQL migrations, indexing       |
 | `backend-developer`   | `.claude/agents/backend-developer.md`   | Express routes, Sequelize models, JWT, Vitest |
 | `frontend-developer`  | `.claude/agents/frontend-developer.md`  | Angular components, signals, routing, Vitest  |
+| `qa-engineer`         | `.claude/agents/qa-engineer.md`         | Build, tests, linting, convention checklist   |
 
 ---
 
@@ -56,6 +57,7 @@ Always in this order — each layer depends on the one above:
 1. `database-specialist` — schema and migration SQL first
 2. `backend-developer` — consumes the schema, exposes the API
 3. `frontend-developer` — consumes the API, renders the UI
+4. `qa-engineer` — always last; reviews only the layers that were modified
 
 ### 3. Write a brief for each subagent
 
@@ -76,9 +78,21 @@ Contracts from previous layers:
 - <DTO added: ResourceDto in libs/rest-dto>
 ```
 
-### 4. Report back to the user
+### 4. Brief the QA agent
 
-After all subagents finish, summarize:
+Pass the list of modified layers so it scopes its review correctly:
+
+```
+## Task brief
+Layer: <database | backend | frontend> (list all that were modified)
+
+Changes implemented:
+- <summary from each subagent>
+```
+
+### 5. Report back to the user
+
+After QA finishes, summarize:
 
 - What was implemented (by layer)
 - Pending manual steps (e.g. `npm install`, run migrations, set env vars)
