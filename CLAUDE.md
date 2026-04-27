@@ -59,6 +59,13 @@ Always in this order — each layer depends on the one above:
 3. `frontend-developer` — consumes the API, renders the UI
 4. `qa-engineer` — always last; reviews only the layers that were modified
 
+After each subagent completes, output a one-line progress update so the user can follow along:
+
+```
+✓ [database] Migration db/N.entity.sql created.
+→ [backend] Running backend-developer...
+```
+
 ### 3. Write a brief for each subagent
 
 Pass structured context so each agent works from facts, not raw specs:
@@ -95,8 +102,15 @@ Changes implemented:
 After QA finishes, summarize:
 
 - What was implemented (by layer)
+- QA result (PASS / PASS WITH WARNINGS / FAIL) and any fixes applied
 - Pending manual steps (e.g. `npm install`, run migrations, set env vars)
 - Suggested next steps
+
+---
+
+## Agile mode
+
+If the user invokes the `start-agile` skill at the start of the session, follow its protocol to track all work on a Leantime kanban board. Without that skill, the standard workflow above applies.
 
 ---
 
