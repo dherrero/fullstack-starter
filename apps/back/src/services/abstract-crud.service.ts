@@ -17,7 +17,7 @@ export abstract class AbstractCrudService {
     page: number,
     limit: number,
     where: Record<string, any> = { deleted: false },
-    excludeColumns?: string[]
+    excludeColumns?: string[],
   ) => {
     const offset = (page - 1) * limit;
     return await this.model.findAndCountAll({
@@ -31,7 +31,7 @@ export abstract class AbstractCrudService {
   };
   getAll = async (
     where: Record<string, any> = { deleted: false },
-    excludeColumns?: string[]
+    excludeColumns?: string[],
   ) =>
     await this.model.findAll({
       attributes: {
@@ -42,7 +42,7 @@ export abstract class AbstractCrudService {
 
   getById = async (
     where: Record<string, any> = { deleted: false },
-    excludeColumns?: string[]
+    excludeColumns?: string[],
   ) =>
     await this.model.findOne({
       attributes: {
@@ -59,7 +59,7 @@ export abstract class AbstractCrudService {
   delete = async (id: number) =>
     await this.model.update(
       { deleted: true, deletedAt: sequelize.literal('CURRENT_TIMESTAMP') },
-      { where: { id } }
+      { where: { id } },
     );
 
   private excludeColumns(showDeleted = false) {

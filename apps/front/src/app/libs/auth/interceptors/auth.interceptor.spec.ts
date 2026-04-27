@@ -56,7 +56,7 @@ describe('AuthInterceptor', () => {
 
       const req = httpMock.expectOne('/api/test');
       expect(req.request.headers.get('Authorization')).toBe(
-        'Bearer test-token'
+        'Bearer test-token',
       );
       expect(req.request.withCredentials).toBe(true);
 
@@ -98,7 +98,7 @@ describe('AuthInterceptor', () => {
       const req = httpMock.expectOne('/api/test');
       expect(req.request.headers.get('Content-Type')).toBe('application/json');
       expect(req.request.headers.get('Authorization')).toBe(
-        'Bearer test-token'
+        'Bearer test-token',
       );
 
       req.flush({});
@@ -116,7 +116,7 @@ describe('AuthInterceptor', () => {
         {},
         {
           headers: { Authorization: 'Bearer new-token' },
-        }
+        },
       );
 
       expect(mockAuthService.setToken).toHaveBeenCalledWith('Bearer new-token');
@@ -141,11 +141,11 @@ describe('AuthInterceptor', () => {
         { data: 'test' },
         {
           headers: { Authorization: 'Bearer response-token' },
-        }
+        },
       );
 
       expect(mockAuthService.setToken).toHaveBeenCalledWith(
-        'Bearer response-token'
+        'Bearer response-token',
       );
     });
   });
@@ -229,13 +229,13 @@ describe('AuthInterceptor', () => {
       httpClient.get('/api/test1').subscribe();
       const req1 = httpMock.expectOne('/api/test1');
       expect(req1.request.headers.get('Authorization')).toBe(
-        'Bearer initial-token'
+        'Bearer initial-token',
       );
       req1.flush(
         {},
         {
           headers: { Authorization: 'Bearer refreshed-token' },
-        }
+        },
       );
 
       // Token should be updated
@@ -245,7 +245,7 @@ describe('AuthInterceptor', () => {
       httpClient.get('/api/test2').subscribe();
       const req2 = httpMock.expectOne('/api/test2');
       expect(req2.request.headers.get('Authorization')).toBe(
-        'Bearer refreshed-token'
+        'Bearer refreshed-token',
       );
       req2.flush({});
     });
@@ -258,7 +258,7 @@ describe('AuthInterceptor', () => {
       const req = httpMock.expectOne('/api/test');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('Authorization')).toBe(
-        'Bearer test-token'
+        'Bearer test-token',
       );
       expect(req.request.body).toEqual({ data: 'test' });
 
@@ -278,7 +278,7 @@ describe('AuthInterceptor', () => {
         { success: true },
         {
           headers: { Authorization: 'Bearer new-token' },
-        }
+        },
       );
 
       expect(mockAuthService.setToken).toHaveBeenCalledWith('Bearer new-token');
@@ -297,7 +297,7 @@ describe('AuthInterceptor', () => {
       const req = httpMock.expectOne('/api/test/1');
       expect(req.request.method).toBe('DELETE');
       expect(req.request.headers.get('Authorization')).toBe(
-        'Bearer expired-token'
+        'Bearer expired-token',
       );
 
       req.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });

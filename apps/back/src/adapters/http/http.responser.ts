@@ -31,7 +31,7 @@ class HttpResponser {
   static errorJson = (
     res: Response,
     error: Record<string, string>,
-    statusCode = 500
+    statusCode = 500,
   ) => HttpResponser.#sendJson(res, { error: error.message }, statusCode);
 
   static #sendJson = (res: Response, data: unknown, statusCode: number) =>

@@ -103,7 +103,7 @@ export const testConnection = async (): Promise<boolean> => {
   for (let attempt = 1; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
     try {
       console.log(
-        `🔄 Database connection attempt ${attempt}/${RETRY_CONFIG.maxRetries}`
+        `🔄 Database connection attempt ${attempt}/${RETRY_CONFIG.maxRetries}`,
       );
 
       await db.authenticate();
@@ -127,7 +127,7 @@ export const testConnection = async (): Promise<boolean> => {
   }
 
   console.error(
-    `❌ Failed to connect to database after ${RETRY_CONFIG.maxRetries} attempts`
+    `❌ Failed to connect to database after ${RETRY_CONFIG.maxRetries} attempts`,
   );
   console.error('Last error:', lastError);
   return false;
@@ -165,8 +165,8 @@ const attemptReconnection = async (): Promise<void> => {
         const delay = calculateRetryDelay(attempt);
         console.log(
           `⏳ Waiting ${Math.round(
-            delay
-          )}ms before next reconnection attempt...`
+            delay,
+          )}ms before next reconnection attempt...`,
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -176,10 +176,10 @@ const attemptReconnection = async (): Promise<void> => {
   }
 
   console.error(
-    `❌ Failed to reconnect to database after ${maxReconnectAttempts} attempts`
+    `❌ Failed to reconnect to database after ${maxReconnectAttempts} attempts`,
   );
   console.error(
-    '⚠️ Application will continue running but database operations may fail'
+    '⚠️ Application will continue running but database operations may fail',
   );
 };
 

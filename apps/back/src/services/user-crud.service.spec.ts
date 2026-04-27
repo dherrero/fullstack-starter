@@ -111,7 +111,7 @@ describe('UserCrudService', () => {
       expect(authService.hashPassword).toHaveBeenCalledWith('newPassword123');
       expect(User.update).toHaveBeenCalledWith(
         { ...updateData, password: hashedPassword },
-        { where: { id: userId } }
+        { where: { id: userId } },
       );
       expect(result).toEqual([1]);
     });
@@ -125,7 +125,7 @@ describe('UserCrudService', () => {
 
       // Act & Assert
       await expect(userCrudService.put(userId, updateData)).rejects.toThrow(
-        'Usuario no encontrado'
+        'Usuario no encontrado',
       );
     });
 
@@ -153,7 +153,7 @@ describe('UserCrudService', () => {
       expect(authService.hashPassword).not.toHaveBeenCalled();
       expect(User.update).toHaveBeenCalledWith(
         { email: 'updated@example.com', permissions: [Permission.USER] },
-        { where: { id: userId } }
+        { where: { id: userId } },
       );
     });
 
@@ -206,7 +206,7 @@ describe('UserCrudService', () => {
 
       // Act & Assert
       await expect(userCrudService.put(userId, updateData)).rejects.toThrow(
-        'No se puede quitar el permiso de ADMIN. Debe existir al menos un usuario con permisos de administrador en el sistema.'
+        'No se puede quitar el permiso de ADMIN. Debe existir al menos un usuario con permisos de administrador en el sistema.',
       );
     });
 
@@ -257,7 +257,7 @@ describe('UserCrudService', () => {
           deleted: true,
           deletedAt: 'CURRENT_TIMESTAMP',
         },
-        { where: { id: userId } }
+        { where: { id: userId } },
       );
       expect(result).toEqual([1]);
     });
@@ -270,7 +270,7 @@ describe('UserCrudService', () => {
 
       // Act & Assert
       await expect(userCrudService.delete(userId)).rejects.toThrow(
-        'Usuario no encontrado'
+        'Usuario no encontrado',
       );
     });
 
@@ -315,7 +315,7 @@ describe('UserCrudService', () => {
 
       // Act & Assert
       await expect(userCrudService.delete(userId)).rejects.toThrow(
-        'No se puede eliminar el usuario. Debe existir al menos un usuario con permisos de administrador en el sistema.'
+        'No se puede eliminar el usuario. Debe existir al menos un usuario con permisos de administrador en el sistema.',
       );
     });
 
