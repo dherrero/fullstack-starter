@@ -8,6 +8,8 @@
 [![Nx](https://img.shields.io/badge/Nx-22.0.1-blue.svg)](https://nx.dev/)
 [![Express](https://img.shields.io/badge/Express-5.1.0-green.svg)](https://expressjs.com/)
 
+🌐 [English version](docs/README_eng.md)
+
 Un proyecto starter completo con monorepo Nx que incluye autenticación JWT, gestión de usuarios, sistema de permisos, internacionalización y Docker. Perfecto para comenzar nuevos proyectos fullstack con Angular y Node.js.
 
 ## ✨ Características Principales
@@ -152,6 +154,111 @@ nx-fullstack-starter/
 ├── db/                          # Scripts de base de datos
 ├── nginx/                       # Configuración Nginx
 └── compose.yaml                 # Docker Compose
+```
+
+## 🤖 Claude Code Friendly — Sistema de Agentes
+
+Este proyecto está configurado para trabajar de forma óptima con **Claude Code**, el agente de codificación de Anthropic. Incluye un sistema de agentes especializados que permite implementar funcionalidades completas de extremo a extremo de forma autónoma, respetando todas las convenciones del proyecto sin que sea necesario recordárselas.
+
+### Estructura de configuración
+
+```
+.claude/
+├── agents/                      # Subagentes especializados
+│   ├── database-specialist.md   # Base de datos (PostgreSQL, migraciones, índices)
+│   ├── backend-developer.md     # Backend (Express, Sequelize, servicios, JWT)
+│   ├── frontend-developer.md    # Frontend (Angular, componentes, formularios)
+│   └── qa-engineer.md           # Control de calidad (tests, linting, cobertura)
+├── skills/                      # Skills invocables
+│   ├── angular-developer.md     # Directrices oficiales de Angular (fuente Google)
+│   └── start-agile.md           # Integración con kanban Leantime
+└── settings.local.json          # Permisos y lista de operaciones permitidas/denegadas
+```
+
+El fichero `CLAUDE.md` de la raíz actúa como **orquestador principal**: recibe la petición, la descompone por capas y delega en cada subagente respetando el orden de dependencias.
+
+### Flujo de orquestación
+
+```
+Petición del usuario
+         ↓
+  [CLAUDE.md] Orquestador
+         ↓
+  ┌──────┬──────────┬──────────┐
+  ↓      ↓          ↓          ↓
+ DB   Backend   Frontend      QA
+  ↓      ↓          ↓          ↓
+  └──────┴──────────┴──────────┘
+         ↓
+  Informe por capa al usuario
+```
+
+El orden de ejecución respeta las dependencias: base de datos → backend → frontend → QA.
+
+### Subagentes
+
+#### 🗄️ Database Specialist
+
+Especialista en diseño de esquemas PostgreSQL y MongoDB, migraciones sin downtime, indexación y optimización de consultas.
+
+- Genera ficheros SQL numerados en `db/` (nunca auto-sync con Sequelize)
+- Modelos Sequelize con mapeo `field` para columnas lowercase
+- Soft deletes (`deleted`, `deletedAt`) en todas las entidades
+- Estrategia de índices: FKs, compuestos, parciales y cubrientes
+- Análisis de rendimiento con `EXPLAIN ANALYZE`
+
+#### 🔧 Backend Developer
+
+Especialista en Express + Sequelize siguiendo arquitectura de 4 capas: Routes → Controllers → Services → Models.
+
+- Patrones `AbstractCrudService` / `AbstractCrudController` para minimizar boilerplate
+- Todas las respuestas HTTP a través de `HttpResponser` (nunca `res.json()` directo)
+- Autenticación JWT con cookies httpOnly para el refresh token
+- Permisos por ruta via `authController.hasPermission(Permission.X)`
+- Tests unitarios con Vitest, mocks solo en los límites (DB, HTTP)
+
+#### 🎨 Frontend Developer
+
+Especialista en Angular siguiendo Clean Architecture y las últimas prácticas oficiales.
+
+- Componentes standalone con `OnPush` y Signals API (`signal`, `computed`, `linkedSignal`, `resource`)
+- `inject()` para inyección de dependencias — nunca constructor injection
+- Rutas lazy-loaded con `loadComponent()` / `loadChildren()`
+- Signal Forms para nuevos formularios (Angular v21+)
+- DTOs importados de `libs/rest-dto` (fuente única de verdad, nunca redefinidos)
+
+#### ✅ QA Engineer
+
+Se ejecuta **siempre el último**, una vez que todos los agentes de implementación han terminado.
+
+1. Compilación TypeScript sin errores (`npx nx run-many -t build`)
+2. Linting (`npm run lint`)
+3. Tests y cobertura — umbral mínimo del **60%** en ficheros nuevos
+4. Revisión de calidad de tests (aserciones significativas, casos límite cubiertos)
+5. Revisión de código (SRP, DRY, sin código muerto)
+6. Checklist de convenciones por capa
+7. Informe final: `PASS | PASS WITH WARNINGS | FAIL`
+
+### Skills
+
+| Skill               | Invocación           | Descripción                                                                                                              |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `angular-developer` | `/angular-developer` | Carga las directrices oficiales de Angular antes de escribir código. Se invoca automáticamente en el agente de frontend. |
+| `start-agile`       | `/start-agile`       | Activa el modo ágil: crea tickets en Leantime por cada capa y actualiza su estado conforme avanza la implementación.     |
+
+### Cómo usarlo
+
+Abre Claude Code en la raíz del proyecto y describe en lenguaje natural la funcionalidad que quieres implementar. El orquestador delega en los subagentes correctos y entrega un informe por capas:
+
+```
+"Añade un módulo de gestión de productos con CRUD completo:
+ tabla products con name, description, price y stock"
+```
+
+Para activar el modo ágil con seguimiento en Leantime:
+
+```
+/start-agile Añade un módulo de gestión de productos con CRUD completo
 ```
 
 ## 🎯 Tips de Trabajo
@@ -494,19 +601,16 @@ lsof -ti:4200 | xargs kill
 ### Personalización del Starter
 
 1. **Cambiar el branding**
-
    - Actualiza textos en `apps/front/src/assets/i18n/`
    - Modifica colores en `apps/front/src/styles.scss`
    - Cambia el favicon y logo
 
 2. **Añadir nuevas funcionalidades**
-
    - Crea nuevos módulos siguiendo la estructura existente
    - Añade nuevos endpoints en el backend
    - Implementa nuevos componentes en el frontend
 
 3. **Configurar la base de datos**
-
    - Añade nuevas tablas en `db/`
    - Crea nuevos modelos en `apps/back/src/models/`
    - Actualiza DTOs en `libs/rest-dto/`
