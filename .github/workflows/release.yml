@@ -1,0 +1,73 @@
+name: 🏷️ Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: 🏷️ Version & Release
+    runs-on: ubuntu-latest
+    # Skip version bump commits pushed by this same workflow
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      # ── Determine bump type from the commit/PR title ──────────────────────────
+      # feat!: or feat(<scope>)!: → MAJOR
+      # feat:  or feat(<scope>):  → MINOR
+      # fix:   or fix(<scope>):   → PATCH
+      # anything else             → no release
+      - name: 🔍 Determine bump type
+        id: bump
+        run: |
+          MSG=$(git log -1 --pretty=%s)
+          echo "Commit message: $MSG"
+          if echo "$MSG" | grep -qE '^feat(\(.+\))?!:'; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$MSG" | grep -qE '^feat(\(.+\))?:'; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          elif echo "$MSG" | grep -qE '^fix(\(.+\))?:'; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+          else
+            echo "type=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔢 Bump package version
+        if: steps.bump.outputs.type != 'none'
+        run: npm version ${{ steps.bump.outputs.type }} --no-git-tag-version
+
+      - name: 📌 Read new version
+        if: steps.bump.outputs.type != 'none'
+        id: version
+        run: echo "value=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: 📝 Commit, tag & push
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: release v${{ steps.version.outputs.value }} [skip ci]"
+          git tag v${{ steps.version.outputs.value }}
+          git push origin main --follow-tags
+
+      - name: 🚀 Create GitHub Release
+        if: steps.bump.outputs.type != 'none'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          name: v${{ steps.version.outputs.value }}
+          generate_release_notes: true
