@@ -1,0 +1,50 @@
+<div class="py-4">
+  <h1 class="mb-1 fw-bold">Page Templates</h1>
+  <p class="text-muted mb-4">
+    Copy any of these pages as a starting point for a new feature.<br />
+    <span class="badge bg-success me-1">Public</span> routes are accessible
+    without login. <span class="badge bg-secondary">Private</span> routes
+    require <code>canActivateFn</code>.
+  </p>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Template</th>
+            <th>Access</th>
+            <th>Best for</th>
+            <th>Description</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (t of templates; track t.route) {
+            <tr>
+              <td class="fw-semibold">{{ t.name }}</td>
+              <td>
+                <span
+                  class="badge"
+                  [class.bg-success]="t.access === 'Public'"
+                  [class.bg-secondary]="t.access === 'Private'"
+                  >{{ t.access }}</span
+                >
+              </td>
+              <td class="text-muted small">{{ t.bestFor }}</td>
+              <td class="text-muted small">{{ t.description }}</td>
+              <td class="text-end">
+                <a
+                  [routerLink]="t.route"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  Preview →
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

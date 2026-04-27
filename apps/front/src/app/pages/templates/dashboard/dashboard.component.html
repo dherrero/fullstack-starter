@@ -1,0 +1,122 @@
+<!-- Top Navbar -->
+<nav
+  class="navbar navbar-expand-lg navbar-light bg-white border-bottom mb-4 px-3"
+>
+  <span class="navbar-brand fw-bold text-primary">Admin Panel</span>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <span class="text-muted small">Ana García</span>
+    <a routerLink="/login" class="btn btn-sm btn-outline-secondary">Sign out</a>
+  </div>
+</nav>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  @for (kpi of kpis; track kpi.label) {
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="text-muted small">{{ kpi.label }}</span>
+            <span class="fs-4">{{ kpi.icon }}</span>
+          </div>
+          <div class="fw-bold fs-4 mb-1">{{ kpi.value }}</div>
+          <span
+            class="badge"
+            [class.bg-success]="kpi.positive"
+            [class.bg-danger]="!kpi.positive"
+            >{{ kpi.delta }} vs last month</span
+          >
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Chart + Activity -->
+<div class="row g-3 mb-4">
+  <!-- Chart placeholder -->
+  <div class="col-12 col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold mb-0">Revenue over time</h6>
+      </div>
+      <div
+        class="card-body d-flex align-items-center justify-content-center chart-placeholder text-muted"
+      >
+        <div class="text-center">
+          <div class="display-1 mb-2">📈</div>
+          <p class="small mb-0">
+            Add <code>ng2-charts</code> or <code>chart.js</code> here
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity feed -->
+  <div class="col-12 col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold mb-0">Recent activity</h6>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          @for (item of activity; track item.user) {
+            <li class="list-group-item d-flex align-items-start gap-3 py-3">
+              <div class="avatar-circle flex-shrink-0">{{ item.initials }}</div>
+              <div class="flex-grow-1">
+                <div class="fw-semibold small">{{ item.user }}</div>
+                <div class="text-muted small">{{ item.action }}</div>
+              </div>
+              <span
+                class="text-muted"
+                style="font-size: 0.7rem; white-space: nowrap"
+                >{{ item.time }}</span
+              >
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card border-0 shadow-sm mb-4">
+  <div
+    class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center"
+  >
+    <h6 class="fw-bold mb-0">Recent transactions</h6>
+    <button class="btn btn-sm btn-outline-secondary">Export CSV</button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Customer</th>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (tx of transactions; track tx.id) {
+          <tr>
+            <td class="text-muted small">{{ tx.id }}</td>
+            <td class="fw-semibold small">{{ tx.customer }}</td>
+            <td class="small">{{ tx.plan }}</td>
+            <td class="fw-semibold small">{{ tx.amount }}</td>
+            <td>
+              <span class="badge" [ngClass]="statusClass(tx.status)">{{
+                tx.status
+              }}</span>
+            </td>
+            <td class="text-muted small">{{ tx.date }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
