@@ -8,7 +8,8 @@ import {
 } from 'sequelize';
 
 export interface UserModel
-  extends UserDTO,
+  extends
+    UserDTO,
     Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> {}
 
 const User = db.define<UserModel>(
@@ -63,6 +64,6 @@ const User = db.define<UserModel>(
       field: 'deletedat',
     },
   },
-  { tableName: 'user' }
+  { tableName: 'user' },
 );
 export default User;

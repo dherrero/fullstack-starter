@@ -14,7 +14,7 @@ export const canActivateFn: CanActivateFn = (next: ActivatedRouteSnapshot) => {
   return authService.initialize().pipe(
     switchMap(() => authService.isLoggedIn$.pipe(take(1))),
     map((isLoggedIn: boolean) =>
-      isLoggedIn ? true : createUrlTreeFromSnapshot(next, ['/', 'login'])
-    )
+      isLoggedIn ? true : createUrlTreeFromSnapshot(next, ['/', 'login']),
+    ),
   );
 };

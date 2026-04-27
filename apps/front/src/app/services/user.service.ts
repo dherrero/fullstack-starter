@@ -33,7 +33,7 @@ export class UserService extends AbstractState<UserState> {
       env.api + this.#userApi + 'paged',
       {
         params: this.#setParams({ page, limit }),
-      }
+      },
     );
   }
 

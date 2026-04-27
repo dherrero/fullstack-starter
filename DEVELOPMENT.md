@@ -475,8 +475,8 @@ console.log(
       timestamp: new Date().toISOString(),
     },
     null,
-    2
-  )
+    2,
+  ),
 );
 ```
 

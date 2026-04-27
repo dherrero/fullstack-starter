@@ -8,7 +8,7 @@ import { isConnected } from '../adapters/db/pg.connector';
 export const dbErrorMiddleware = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   // Verificar si la base de datos está conectada
   if (!isConnected()) {
@@ -32,7 +32,7 @@ export const sequelizeErrorMiddleware = (
   error: any,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   // Verificar si es un error de Sequelize
   if (error.name && error.name.startsWith('Sequelize')) {
@@ -112,7 +112,7 @@ export const sequelizeErrorMiddleware = (
 export const dbLoggingMiddleware = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const originalSend = res.send;
 

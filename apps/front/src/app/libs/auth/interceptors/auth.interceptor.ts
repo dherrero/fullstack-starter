@@ -38,7 +38,7 @@ export class AuthInterceptor implements HttpInterceptor {
           }
         }
       }),
-      catchError(this.errorHandle.bind(this))
+      catchError(this.errorHandle.bind(this)),
     );
   }
   private errorHandle(error: HttpErrorResponse) {
