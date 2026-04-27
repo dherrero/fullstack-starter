@@ -49,7 +49,7 @@ describe('IfLoggedInDirective', () => {
       directive.appIfLoggedIn = true;
 
       expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-        mockTemplateRef
+        mockTemplateRef,
       );
     });
 
@@ -70,7 +70,7 @@ describe('IfLoggedInDirective', () => {
       directive.appIfLoggedIn = false;
 
       expect(mockViewContainer.createEmbeddedView).toHaveBeenCalledWith(
-        mockTemplateRef
+        mockTemplateRef,
       );
     });
 

@@ -25,7 +25,7 @@ class UserCrudService extends AbstractCrudService {
 
     // Verificar si el usuario actual es ADMIN y va a perder ese permiso
     const currentUserIsAdmin = currentUser.permissions.includes(
-      Permission.ADMIN
+      Permission.ADMIN,
     );
     const newUserIsAdmin = userData.permissions?.includes(Permission.ADMIN);
 
@@ -41,7 +41,7 @@ class UserCrudService extends AbstractCrudService {
 
       if (adminCount === 0) {
         throw new Error(
-          'No se puede quitar el permiso de ADMIN. Debe existir al menos un usuario con permisos de administrador en el sistema.'
+          'No se puede quitar el permiso de ADMIN. Debe existir al menos un usuario con permisos de administrador en el sistema.',
         );
       }
     }
@@ -75,7 +75,7 @@ class UserCrudService extends AbstractCrudService {
 
       if (adminCount === 0) {
         throw new Error(
-          'No se puede eliminar el usuario. Debe existir al menos un usuario con permisos de administrador en el sistema.'
+          'No se puede eliminar el usuario. Debe existir al menos un usuario con permisos de administrador en el sistema.',
         );
       }
     }
@@ -85,7 +85,7 @@ class UserCrudService extends AbstractCrudService {
         deleted: true,
         deletedAt: this.model.sequelize.literal('CURRENT_TIMESTAMP'),
       },
-      { where: { id } }
+      { where: { id } },
     );
   };
 }

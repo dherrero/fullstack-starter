@@ -7,32 +7,32 @@ const userCrudRouter = Router();
 userCrudRouter.get(
   '/',
   authController.hasPermission(Permission.ADMIN),
-  userCrudController.getAll
+  userCrudController.getAll,
 );
 userCrudRouter.get(
   '/paged',
   authController.hasPermission(Permission.ADMIN),
-  userCrudController.getAllPaged
+  userCrudController.getAllPaged,
 );
 userCrudRouter.get(
   '/:id',
   authController.hasPermission(Permission.ADMIN),
-  userCrudController.getById
+  userCrudController.getById,
 );
 userCrudRouter.post(
   '/',
   authController.hasPermission(Permission.ADMIN),
-  userCrudController.post
+  userCrudController.post,
 );
 userCrudRouter.put(
   '/:id',
   authController.hasPermission(Permission.ADMIN),
-  userCrudController.put
+  userCrudController.put,
 );
 userCrudRouter.delete(
   '/:id',
   authController.hasPermission(Permission.ADMIN),
-  userCrudController.delete
+  userCrudController.delete,
 );
 
 export default userCrudRouter;

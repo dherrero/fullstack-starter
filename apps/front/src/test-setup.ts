@@ -12,5 +12,5 @@ getTestBed().initTestEnvironment(
   {
     errorOnUnknownElements: true,
     errorOnUnknownProperties: true,
-  }
+  },
 );

@@ -341,7 +341,7 @@ describe('AuthService', () => {
         service.hasAnyPermission([
           Permission.ADMIN,
           Permission.WRITE_SOME_ENTITY,
-        ])
+        ]),
       ).toBe(true);
     });
 
@@ -357,7 +357,7 @@ describe('AuthService', () => {
       service.setToken(token);
 
       expect(service.hasAnyPermission([Permission.WRITE_SOME_ENTITY])).toBe(
-        false
+        false,
       );
     });
 
@@ -376,7 +376,7 @@ describe('AuthService', () => {
         service.hasAllPermissions([
           Permission.ADMIN,
           Permission.READ_SOME_ENTITY,
-        ])
+        ]),
       ).toBe(true);
     });
 
@@ -395,7 +395,7 @@ describe('AuthService', () => {
         service.hasAllPermissions([
           Permission.ADMIN,
           Permission.WRITE_SOME_ENTITY,
-        ])
+        ]),
       ).toBe(false);
     });
 

@@ -43,7 +43,7 @@ export class AuthService {
           // Only store AccessToken in memory, RefreshToken is in cookie
           this.setToken(response.headers.get('Authorization') ?? '');
           this.isInitialized.set(true);
-        })
+        }),
       );
   }
 
@@ -53,7 +53,7 @@ export class AuthService {
       .post(
         this.#authConfig.idpServer + '/logout',
         {},
-        { withCredentials: true }
+        { withCredentials: true },
       )
       .pipe(
         tap(() => {
@@ -69,7 +69,7 @@ export class AuthService {
             this.#router.navigateByUrl(redirect);
           }
           return of(null);
-        })
+        }),
       )
       .subscribe();
   }
@@ -112,7 +112,7 @@ export class AuthService {
         catchError(() => {
           this.isInitialized.set(false);
           return of(false);
-        })
+        }),
       );
   }
 
@@ -130,7 +130,7 @@ export class AuthService {
               if (token) {
                 this.setToken(token);
               }
-            })
+            }),
           )
       : of(null);
   }
@@ -149,14 +149,14 @@ export class AuthService {
   hasAnyPermission(permissions: Permission[]): boolean {
     const userPermissions = this.tokenDecoded.permissions || [];
     return permissions.some((permission) =>
-      userPermissions.includes(permission)
+      userPermissions.includes(permission),
     );
   }
 
   hasAllPermissions(permissions: Permission[]): boolean {
     const userPermissions = this.tokenDecoded.permissions || [];
     return permissions.every((permission) =>
-      userPermissions.includes(permission)
+      userPermissions.includes(permission),
     );
   }
 

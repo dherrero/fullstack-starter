@@ -13,7 +13,7 @@ import { AuthService } from './services/auth.service';
  * @returns Array de providers para autenticación
  */
 export function provideAuth(
-  config: AuthConfig
+  config: AuthConfig,
 ): (Provider | EnvironmentProviders)[] {
   return [
     AuthService,

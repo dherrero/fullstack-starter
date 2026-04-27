@@ -53,7 +53,7 @@ describe('AuthService', () => {
       });
       expect(bcrypt.compare).toHaveBeenCalledWith(
         'password123',
-        'hashed-password'
+        'hashed-password',
       );
       expect(result).toEqual(mockUser);
     });
@@ -64,7 +64,7 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(
-        authService.login('nonexistent@example.com', 'password123')
+        authService.login('nonexistent@example.com', 'password123'),
       ).rejects.toThrow('Email or password incorrect.');
     });
 
@@ -82,7 +82,7 @@ describe('AuthService', () => {
 
       // Act & Assert
       await expect(
-        authService.login('test@example.com', 'wrong-password')
+        authService.login('test@example.com', 'wrong-password'),
       ).rejects.toThrow('Email or password incorrect.');
     });
   });

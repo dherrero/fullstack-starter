@@ -1,12 +1,12 @@
 <div class="btn-group" role="group">
   @for (language of availableLanguages; track language.code) {
-  <button
-    type="button"
-    class="btn btn-outline-secondary btn-sm"
-    [class.active]="currentLang === language.code"
-    (click)="switchLanguage(language.code)"
-  >
-    {{ 'languages.' + language.name | transloco }}
-  </button>
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm"
+      [class.active]="currentLang === language.code"
+      (click)="switchLanguage(language.code)"
+    >
+      {{ 'languages.' + language.name | transloco }}
+    </button>
   }
 </div>

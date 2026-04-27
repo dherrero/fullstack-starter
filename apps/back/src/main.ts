@@ -21,7 +21,7 @@ console.log('POSTGRESDB_DATABASE:', process.env.POSTGRESDB_DATABASE);
 console.log('POSTGRESDB_USER:', process.env.POSTGRESDB_USER);
 console.log(
   'POSTGRESDB_PASSWORD:',
-  process.env.POSTGRESDB_PASSWORD ? '***' : 'undefined'
+  process.env.POSTGRESDB_PASSWORD ? '***' : 'undefined',
 );
 
 class Main {
@@ -44,7 +44,7 @@ class Main {
     this.#app.listen(this.#port, '0.0.0.0', () => {
       console.log(`🚀 Server is running on port ${this.#port}`);
       console.log(
-        '⚠️ Note: Database connection will be attempted in the background'
+        '⚠️ Note: Database connection will be attempted in the background',
       );
     });
 
@@ -61,7 +61,7 @@ class Main {
       this.#startHealthCheck();
     } else {
       console.log(
-        '⚠️ Database connection failed, but server continues running'
+        '⚠️ Database connection failed, but server continues running',
       );
       console.log('🔄 Will retry database connection automatically...');
       this.#startHealthCheck();
@@ -104,7 +104,7 @@ class Main {
       process.env.NODE_UPLOAD_FILES
         ? `/${process.env.NODE_UPLOAD_FILES}`
         : '/uploads',
-      express.static(UPLOAD_DIR)
+      express.static(UPLOAD_DIR),
     );
 
     // expose authorization headers (RefreshToken is now in cookie, not header)
