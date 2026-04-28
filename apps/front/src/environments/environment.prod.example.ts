@@ -1,6 +1,5 @@
-export const environment = {
+export const env = {
   production: true,
-  api: 'https://your-api-domain.com/api/',
-  appName: 'Angular Node Starter',
-  version: '1.0.0',
+  // Use relative path to leverage nginx proxy (same origin, Docker Compose)
+  api: '/api/v1/',
 };
