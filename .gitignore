@@ -154,7 +154,6 @@ ehthumbs.db
 Thumbs.db
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # Backup files

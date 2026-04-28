@@ -1,5 +1,5 @@
 # Etapa 1: Construcción de la aplicación Frontend (Node.js)
-FROM node:18-slim AS build
+FROM node:22-slim AS build
 
 # Directorio de trabajo para la compilación
 WORKDIR /app
@@ -9,16 +9,22 @@ COPY package*.json ./
 COPY nx.json ./
 COPY tsconfig.base.json ./
 
-# Actualizar npm a una versión compatible con Node.js 18
-RUN npm install -g npm@10.9.0
-
-# Instalar las dependencias necesarias ignorando scripts post-instalación
-RUN npm install --ignore-scripts --verbose
+# HUSKY=0 evita que husky falle al no haber .git en el contexto Docker
+ENV HUSKY=0
+RUN npm install --verbose
 
 # Copiar el código fuente para construir la aplicación Frontend
 COPY . .
 
-# Construir la aplicación (los archivos compilados estarán en dist/apps/app-front)
+# Usar environment de producción; si no existe, usar el de ejemplo como fallback
+RUN test -f apps/front/src/environments/environment.prod.ts \
+    || cp apps/front/src/environments/environment.prod.example.ts \
+          apps/front/src/environments/environment.prod.ts
+
+# Angular builds require significant memory; set heap limit before building
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+
+# Construir la aplicación (los archivos compilados estarán en dist/apps/front)
 RUN npm run build:front --verbose
 
 # Etapa 2: Imagen final (Nginx para servir la aplicación)
@@ -50,7 +56,7 @@ RUN groupadd app-front && \
 WORKDIR ${APP_DIR}
 
 # Copiar los archivos compilados de la etapa de construcción
-COPY --from=build /app/dist/apps/app-front ${APP_DIR}
+COPY --from=build /app/dist/apps/front/browser ${APP_DIR}
 
 # Exponer el puerto 80
 EXPOSE 80
