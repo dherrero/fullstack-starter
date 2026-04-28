@@ -48,9 +48,7 @@
       "Edit(.claude/agents/*)",
       "Write(.claude/agents/*)",
       "Edit(.claude/skills/*)",
-      "Write(.claude/skills/*)",
-      "Bash(mkdir -p /Users/dherreto/Repos/otros/mios/fullstack-starter/.claude/skills/references)",
-      "Bash(cp /Users/dherreto/Repos/otros/angular-skills/angular-developer/references/*.md /Users/dherreto/Repos/otros/mios/fullstack-starter/.claude/skills/references/)"
+      "Write(.claude/skills/*)"
     ],
     "deny": [
       "Bash(rm -rf*)",
