@@ -53,6 +53,10 @@ services:
     depends_on:
       - back
     restart: unless-stopped
+    ports:
+      - '${FRONT_PORT:-80}'
+    networks:
+      - back-starter-network
 
 volumes:
   starter-postgresdb:
