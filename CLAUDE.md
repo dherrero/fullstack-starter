@@ -122,3 +122,8 @@ If the user invokes the `start-agile` skill at the start of the session, follow 
 - DB column names are lowercase; Sequelize models use `field` mapping for camelCase
 - Angular components use `OnPush`, `inject()`, and Signals API — no constructor injection
 - Git: feature branches only (`feat/*`, `fix/*`), never commit to `main` or `master`
+
+## Leantime Integration
+
+<!-- This section is written by the start-agile skill on first run. Do not edit manually. -->
+<!-- Leantime project ID: (registered automatically on first start-agile invocation) -->
