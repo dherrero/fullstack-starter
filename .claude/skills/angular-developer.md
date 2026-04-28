@@ -8,41 +8,29 @@ argument-hint: '[topic or task]'
 
 > Source: https://github.com/angular/skills/tree/main/angular-developer (Copyright 2026 Google LLC, MIT License)
 
-1. Always analyze the project's Angular version before providing guidance, as best practices and available features can vary significantly between versions. If creating a new project with Angular CLI, do not specify a version unless prompted by the user.
+1. Always analyze the project's Angular version before providing guidance, as best practices and available features can vary significantly between versions.
 
 2. When generating code, follow Angular's style guide and best practices for maintainability and performance. Use the Angular CLI for scaffolding components, services, directives, pipes, and routes to ensure consistency.
 
-3. Once you finish generating code, run `ng build` to ensure there are no build errors. If there are errors, analyze the error messages and fix them before proceeding. Do not skip this step.
-
-## Creating New Projects
-
-Default rules when no guidelines are provided:
-
-1. Use the latest stable version of Angular unless the user specifies otherwise.
-2. Use **Signal Forms** for form management in new projects (available in Angular v21+).
-
-**`ng new` execution rules — follow in order:**
-
-1. If the user requests a specific version: `npx @angular/cli@<version> new <project-name>`
-2. If no version requested, check `ng version` — if installed: `ng new <project-name>`
-3. If `ng version` fails (not installed): `npx @angular/cli@latest new <project-name>`
+3. Once you finish generating code, run `ng build` to ensure there are no build errors. If there are errors, fix them before proceeding.
 
 ## Components
 
-- **Fundamentals** (anatomy, metadata, control flow `@if`/`@for`/`@switch`): https://angular.dev/guide/components
-- **Signal inputs** (`input()`, transforms, `model()`): use signal-based inputs by default
-- **Outputs** (`output()`): use signal-based outputs
-- **Host elements**: use `host` property in `@Component` metadata, not `@HostBinding`/`@HostListener`
+When working with Angular components, consult the following references based on the task:
+
+- **Fundamentals** (anatomy, metadata, control flow `@if`/`@for`/`@switch`): Read [components.md](references/components.md)
+- **Signal inputs** (`input()`, transforms, `model()`): Read [inputs.md](references/inputs.md)
+- **Outputs** (`output()`): Read [outputs.md](references/outputs.md)
+- **Host elements** (use `host` property in `@Component`, not `@HostBinding`/`@HostListener`): Read [host-elements.md](references/host-elements.md)
 
 ## Reactivity and Data Management
 
-Use **Angular Signals** for all state management:
+Use **Angular Signals** for all state management. Consult:
 
-- `signal()` + `computed()` — core reactive primitives
-- `linkedSignal()` — writable state derived from a source signal
-- `resource()` — async data fetching directly into signal state
-- `effect()` — side effects only (logging, 3rd-party DOM libs); **never** use effects to propagate state
-- `afterRenderEffect()` — DOM manipulation after render
+- **Signals Overview** (`signal`, `computed`, `untracked`, reactive contexts): Read [signals-overview.md](references/signals-overview.md)
+- **Dependent State (`linkedSignal`)** — writable state derived from a source signal: Read [linked-signal.md](references/linked-signal.md)
+- **Async Reactivity (`resource`)** — fetch async data into signal state: Read [resource.md](references/resource.md)
+- **Side Effects (`effect`, `afterRenderEffect`)** — when to use and when NOT to: Read [effects.md](references/effects.md)
 
 ## Forms
 
@@ -52,19 +40,36 @@ Use **Angular Signals** for all state management:
 | Existing app with reactive forms | Reactive Forms (`FormGroup`, `FormControl`) |
 | Simple, low-interactivity        | Template-driven forms                       |
 
+- **Signal Forms** (v21+): Read [signal-forms.md](references/signal-forms.md) — **CRITICAL**: contains gotchas, forbidden patterns, and build-error fixes
+- **Reactive Forms**: Read [reactive-forms.md](references/reactive-forms.md)
+- **Template-driven Forms**: Read [template-driven-forms.md](references/template-driven-forms.md)
+
 ## Dependency Injection
 
-- Always use `inject()` function — never constructor injection
-- Services: `providedIn: 'root'` by default
-- Use `InjectionToken` for non-class dependencies
-- Prefer `runInInjectionContext` over workarounds when outside injection context
+Always use `inject()` function — never constructor injection. Consult:
+
+- **Fundamentals** (services, `inject()` function): Read [di-fundamentals.md](references/di-fundamentals.md)
+- **Creating Services** (`providedIn: 'root'`, injection into components): Read [creating-services.md](references/creating-services.md)
+- **Defining Providers** (`InjectionToken`, `useClass`, `useValue`, `useFactory`): Read [defining-providers.md](references/defining-providers.md)
+- **Injection Context** (`runInInjectionContext`, `assertInInjectionContext`): Read [injection-context.md](references/injection-context.md)
+- **Hierarchical Injectors** (`EnvironmentInjector` vs `ElementInjector`, resolution rules): Read [hierarchical-injectors.md](references/hierarchical-injectors.md)
 
 ## Routing
 
 - Lazy-load all feature routes with `loadComponent()` or `loadChildren()`
-- Use `ResolveFn` to pre-fetch data before route activation
 - Implement guards with `CanActivateFn` / `CanMatchFn` (functional style)
-- For SSR: configure rendering strategies (CSR / SSG / SSR with hydration) per route
+- Use `ResolveFn` to pre-fetch data before route activation
+
+Consult:
+
+- **Define Routes** (URL paths, wildcards, redirects): Read [define-routes.md](references/define-routes.md)
+- **Loading Strategies** (eager vs lazy): Read [loading-strategies.md](references/loading-strategies.md)
+- **Router Outlets** (nested/named outlets): Read [show-routes-with-outlets.md](references/show-routes-with-outlets.md)
+- **Navigation** (`RouterLink`, `Router`): Read [navigate-to-routes.md](references/navigate-to-routes.md)
+- **Route Guards** (`CanActivate`, `CanMatch`): Read [route-guards.md](references/route-guards.md)
+- **Data Resolvers** (`ResolveFn`): Read [data-resolvers.md](references/data-resolvers.md)
+- **Rendering Strategies** (CSR, SSG, SSR): Read [rendering-strategies.md](references/rendering-strategies.md)
+- **Route Animations** (View Transitions API): Read [route-animations.md](references/route-animations.md)
 
 ## Accessibility (ARIA)
 
@@ -73,12 +78,19 @@ For custom interactive components (Accordion, Listbox, Combobox, Menu, Tabs, Too
 - Use Angular CDK ARIA primitives (headless, accessible)
 - Style via ARIA attribute selectors (`[aria-selected="true"]`) instead of class-based state
 
+Read [angular-aria.md](references/angular-aria.md)
+
 ## Styling and Animations
 
 - Prefer **native CSS** animations over Angular Animations DSL
-- Use Angular Animations DSL only for dynamic, data-driven animations
-- Apply Tailwind CSS via `@import "tailwindcss"` in `styles.css` (Angular CLI handles PostCSS)
+- Apply Tailwind CSS via `@import "tailwindcss"` in `styles.css`
 - Component styles use `:host` selector; prefer `ViewEncapsulation.None` for design-system components
+
+Consult:
+
+- **Tailwind CSS**: Read [tailwind-css.md](references/tailwind-css.md)
+- **Angular Animations** (native CSS vs DSL): Read [angular-animations.md](references/angular-animations.md)
+- **Component Styling** (encapsulation, `:host`): Read [component-styling.md](references/component-styling.md)
 
 ## Testing
 
@@ -89,15 +101,16 @@ For custom interactive components (Accordion, Listbox, Combobox, Menu, Tabs, Too
 | Router navigation     | `RouterTestingHarness`          |
 | End-to-end            | **Cypress**                     |
 
-Best practices:
+Consult:
 
-- Test behavior, not implementation details
-- Use `fakeAsync`/`tick` for async operations in unit tests
-- Prefer harnesses over direct DOM querying for Angular Material components
+- **Fundamentals** (zoneless testing, `fixture.whenStable()`, Act-Wait-Assert): Read [testing-fundamentals.md](references/testing-fundamentals.md)
+- **Component Harnesses**: Read [component-harnesses.md](references/component-harnesses.md)
+- **Router Testing**: Read [router-testing.md](references/router-testing.md)
+- **End-to-End (Cypress)**: Read [e2e-testing.md](references/e2e-testing.md)
 
 ## Angular CLI
 
-Key commands:
+Key commands for this Nx monorepo (prefer `nx` wrappers over bare `ng`):
 
 ```bash
 ng generate component <name> --standalone    # Standalone component
@@ -107,3 +120,5 @@ ng generate pipe <name> --standalone         # Standalone pipe
 ng build --configuration=production          # Production build
 ng test                                      # Run unit tests
 ```
+
+For CLI tooling reference: Read [cli.md](references/cli.md)
