@@ -51,8 +51,14 @@ jobs:
       - name: 🧪 Run Frontend Tests
         run: npm run test:front -- --coverage
 
-      - name: 🧪 Run Backend Tests
-        run: npm run test:back -- --coverage
+      - name: 🧪 Run API Tests
+        run: npm run test:api -- --coverage
+
+      - name: 🧪 Run Gateway Tests
+        run: npm run test:gateway -- --coverage
+
+      - name: 🧪 Run Internal Auth Tests
+        run: npm run test:internal-auth -- --coverage
 
       - name: 📊 Upload Coverage
         uses: codecov/codecov-action@v5

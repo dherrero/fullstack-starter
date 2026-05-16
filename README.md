@@ -27,11 +27,19 @@ Un proyecto starter completo con monorepo Nx que incluye autenticación JWT, ges
 
 ### 🔐 **Autenticación & Seguridad**
 
-- JWT con access y refresh tokens
-- Sistema de permisos basado en roles
-- Guards para protección de rutas
+- Arquitectura de microservicios: **gateway** público + **api** privado
+  (ver `docs/SECURITY.md`)
+- JWT del cliente con secretos separados access/refresh, claims `typ` y
+  `jti`, rotación de refresh con detección de reuso (revoca toda la
+  familia ante un robo de cookie)
+- JWT interno entre gateway y api firmado con **Ed25519**: sólo el
+  gateway tiene la clave privada, el api únicamente la pública
+- Sistema de permisos basado en roles, guards y directivas Angular
 - Interceptores HTTP automáticos
 - Hashing seguro de contraseñas con bcrypt
+
+> **Antes del primer arranque** generá las claves Ed25519 y los secretos
+> JWT siguiendo [docs/SECURITY.md](docs/SECURITY.md).
 
 ### 🌍 **Internacionalización**
 
