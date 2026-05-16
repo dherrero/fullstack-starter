@@ -22,7 +22,7 @@ interface RotateRefreshResponse {
 const baseUrl = () =>
   process.env.API_BASE_URL?.replace(/\/$/, '') ?? 'http://api:3200';
 
-const internalSecret = () => process.env.INTERNAL_JWT_SECRET ?? '';
+const internalPrivateKey = () => process.env.INTERNAL_JWT_PRIVATE_KEY ?? '';
 
 const callApi = async <T>(
   path: string,
@@ -31,9 +31,9 @@ const callApi = async <T>(
   requestId: string,
   fallbackError: string,
 ): Promise<T> => {
-  const token = signSystemContext(
+  const token = await signSystemContext(
     { scope, requestId },
-    { secret: internalSecret() },
+    { privateKey: internalPrivateKey() },
   );
 
   const response = await fetch(`${baseUrl()}${path}`, {

@@ -10,7 +10,7 @@ import { verifyInternalAuth } from './internal-auth.signer';
 import type { InternalAuthClaims } from './internal-auth.types';
 
 export interface RequireInternalAuthOptions {
-  secret: string;
+  publicKey: string;
   issuer?: string;
   audience?: string;
   allowedScopes?: InternalScope[];
@@ -26,6 +26,11 @@ declare global {
   }
 }
 
+const hasAnyPermission = (
+  userPermissions: Permission[],
+  required: Permission[],
+): boolean => required.some((perm) => userPermissions.includes(perm));
+
 /**
  * Express middleware factory. Verifies the `X-Internal-Auth` JWT placed
  * by the gateway, exposes the claims as `res.locals.internalAuth`, and
@@ -33,7 +38,7 @@ declare global {
  */
 export const requireInternalAuth =
   (options: RequireInternalAuthOptions) =>
-  (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     const token = req.header(INTERNAL_AUTH_HEADER);
     if (!token) {
       return res.status(401).json({
@@ -44,8 +49,8 @@ export const requireInternalAuth =
     }
 
     try {
-      const claims = verifyInternalAuth(token, {
-        secret: options.secret,
+      const claims = await verifyInternalAuth(token, {
+        publicKey: options.publicKey,
         issuer: options.issuer,
         audience: options.audience,
       });
@@ -83,8 +88,3 @@ export const requireInternalAuth =
       });
     }
   };
-
-const hasAnyPermission = (
-  userPermissions: Permission[],
-  required: Permission[],
-): boolean => required.some((perm) => userPermissions.includes(perm));

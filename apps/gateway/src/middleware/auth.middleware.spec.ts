@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
 import { Permission } from '@dto';
@@ -7,6 +8,11 @@ import {
   respondWithTokens,
 } from './auth.middleware';
 import { tokenService } from '@gateway/services';
+
+const { privateKey: edPrivateKey } = generateKeyPairSync('ed25519');
+const PRIVATE_PEM = edPrivateKey
+  .export({ format: 'pem', type: 'pkcs8' })
+  .toString();
 
 const buildRequest = (overrides: Partial<Request> = {}): Request =>
   ({
@@ -64,7 +70,7 @@ const originalFetch = globalThis.fetch;
 beforeEach(() => {
   process.env.JWT_ACCESS_SECRET = 'gateway-access-secret';
   process.env.JWT_REFRESH_SECRET = 'gateway-refresh-secret';
-  process.env.INTERNAL_JWT_SECRET = 'internal-secret';
+  process.env.INTERNAL_JWT_PRIVATE_KEY = PRIVATE_PEM;
   process.env.API_BASE_URL = 'http://api.test:3200';
   process.env.JWT_EXPIRES_IN = '1h';
   process.env.JWT_REFRESH_EXPIRES_IN = '8h';

@@ -5,7 +5,7 @@ import { Router } from 'express';
 
 const userCrudRouter = Router();
 const requireAdmin = requireInternalAuth({
-  secret: process.env.INTERNAL_JWT_SECRET ?? '',
+  publicKey: process.env.INTERNAL_JWT_PUBLIC_KEY ?? '',
   allowedScopes: [InternalScope.USER_REQUEST],
   requiredPermissions: [Permission.ADMIN],
 });

@@ -17,15 +17,24 @@ export interface InternalAuthClaims {
   exp?: number;
 }
 
+/**
+ * Sign options: an Ed25519 private key (PEM). Only the gateway holds
+ * this key — downstream services cannot mint tokens, only verify them.
+ */
 export interface InternalAuthSignOptions {
-  secret: string;
+  privateKey: string;
   ttlSeconds?: number;
   issuer?: string;
   audience?: string;
 }
 
+/**
+ * Verify options: an Ed25519 public key (PEM). Downstream services use
+ * this to authenticate incoming gateway tokens without ever being able
+ * to forge new ones themselves.
+ */
 export interface InternalAuthVerifyOptions {
-  secret: string;
+  publicKey: string;
   issuer?: string;
   audience?: string;
 }

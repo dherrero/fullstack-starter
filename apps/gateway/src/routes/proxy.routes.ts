@@ -16,7 +16,7 @@ import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 const upstream = () =>
   process.env.API_BASE_URL?.replace(/\/$/, '') ?? 'http://api:3200';
 
-const internalSecret = () => process.env.INTERNAL_JWT_SECRET ?? '';
+const internalPrivateKey = () => process.env.INTERNAL_JWT_PRIVATE_KEY ?? '';
 
 /**
  * Build the proxy middleware that forwards `/v1/*` to the api service.
@@ -30,26 +30,30 @@ export const buildProxyRouter = (): Router => {
 
   router.use(
     hasPermission(),
-    (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction) => {
       const user = res.locals.user;
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
       const requestId =
         (req.header(INTERNAL_REQUEST_ID_HEADER) as string) ?? randomUUID();
-      const internalToken = signUserContext(
-        {
-          userId: user.id,
-          permissions: user.permissions,
-          requestId,
-        },
-        { secret: internalSecret() },
-      );
-      (req as Request & { internalToken?: string }).internalToken =
-        internalToken;
-      (req as Request & { internalRequestId?: string }).internalRequestId =
-        requestId;
-      return next();
+      try {
+        const internalToken = await signUserContext(
+          {
+            userId: user.id,
+            permissions: user.permissions,
+            requestId,
+          },
+          { privateKey: internalPrivateKey() },
+        );
+        (req as Request & { internalToken?: string }).internalToken =
+          internalToken;
+        (req as Request & { internalRequestId?: string }).internalRequestId =
+          requestId;
+        return next();
+      } catch {
+        return res.status(500).json({ error: 'Internal auth signing failed' });
+      }
     },
     createProxyMiddleware({
       target: upstream(),

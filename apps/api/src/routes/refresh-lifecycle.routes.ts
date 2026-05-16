@@ -5,7 +5,7 @@ import { Router } from 'express';
 const refreshLifecycleRouter = Router();
 
 const requireRefreshScope = requireInternalAuth({
-  secret: process.env.INTERNAL_JWT_SECRET ?? '',
+  publicKey: process.env.INTERNAL_JWT_PUBLIC_KEY ?? '',
   allowedScopes: [InternalScope.REFRESH_LIFECYCLE],
 });
 

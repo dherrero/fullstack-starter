@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
 import { Permission } from '@dto';
@@ -9,7 +10,15 @@ import {
 import { requireInternalAuth } from './internal-auth.middleware';
 import { signSystemContext, signUserContext } from './internal-auth.signer';
 
-const SECRET = 'middleware-test-secret';
+const buildEd25519KeyPair = () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  return {
+    privateKey: privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
+    publicKey: publicKey.export({ format: 'pem', type: 'spki' }).toString(),
+  };
+};
+
+const { privateKey, publicKey } = buildEd25519KeyPair();
 
 const buildResponse = () => {
   const json = vi.fn();
@@ -38,11 +47,11 @@ describe('requireInternalAuth', () => {
     next = vi.fn();
   });
 
-  it('rejects requests without the internal header', () => {
-    const middleware = requireInternalAuth({ secret: SECRET });
+  it('rejects requests without the internal header', async () => {
+    const middleware = requireInternalAuth({ publicKey });
     const { res, status, json } = buildResponse();
 
-    middleware(buildRequest(), res, next);
+    await middleware(buildRequest(), res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith(
@@ -51,11 +60,11 @@ describe('requireInternalAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('rejects requests with an invalid token', () => {
-    const middleware = requireInternalAuth({ secret: SECRET });
+  it('rejects requests with an invalid token', async () => {
+    const middleware = requireInternalAuth({ publicKey });
     const { res, status, json } = buildResponse();
 
-    middleware(buildRequest('not-a-jwt'), res, next);
+    await middleware(buildRequest('not-a-jwt'), res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith(
@@ -64,23 +73,23 @@ describe('requireInternalAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('lets a valid user-scope token through and exposes claims', () => {
-    const token = signUserContext(
+  it('lets a valid user-scope token through and exposes claims', async () => {
+    const token = await signUserContext(
       {
         userId: 9,
         permissions: [Permission.ADMIN],
         requestId: 'req-9',
       },
-      { secret: SECRET },
+      { privateKey },
     );
     const middleware = requireInternalAuth({
-      secret: SECRET,
+      publicKey,
       allowedScopes: [InternalScope.USER_REQUEST],
       requiredPermissions: [Permission.ADMIN],
     });
     const { res, locals, setHeader } = buildResponse();
 
-    middleware(buildRequest(token), res, next);
+    await middleware(buildRequest(token), res, next);
 
     expect(next).toHaveBeenCalled();
     expect(locals['internalAuth']).toEqual(
@@ -94,18 +103,18 @@ describe('requireInternalAuth', () => {
     expect(setHeader).toHaveBeenCalledWith(INTERNAL_REQUEST_ID_HEADER, 'req-9');
   });
 
-  it('rejects a system token where only user scope is allowed', () => {
-    const token = signSystemContext(
+  it('rejects a system token where only user scope is allowed', async () => {
+    const token = await signSystemContext(
       { scope: InternalScope.AUTH_VALIDATE },
-      { secret: SECRET },
+      { privateKey },
     );
     const middleware = requireInternalAuth({
-      secret: SECRET,
+      publicKey,
       allowedScopes: [InternalScope.USER_REQUEST],
     });
     const { res, status, json } = buildResponse();
 
-    middleware(buildRequest(token), res, next);
+    await middleware(buildRequest(token), res, next);
 
     expect(status).toHaveBeenCalledWith(403);
     expect(json).toHaveBeenCalledWith(
@@ -114,21 +123,21 @@ describe('requireInternalAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('rejects when required permissions are not satisfied', () => {
-    const token = signUserContext(
+  it('rejects when required permissions are not satisfied', async () => {
+    const token = await signUserContext(
       {
         userId: 1,
         permissions: [Permission.READ_SOME_ENTITY],
       },
-      { secret: SECRET },
+      { privateKey },
     );
     const middleware = requireInternalAuth({
-      secret: SECRET,
+      publicKey,
       requiredPermissions: [Permission.ADMIN],
     });
     const { res, status, json } = buildResponse();
 
-    middleware(buildRequest(token), res, next);
+    await middleware(buildRequest(token), res, next);
 
     expect(status).toHaveBeenCalledWith(403);
     expect(json).toHaveBeenCalledWith(

@@ -5,7 +5,7 @@ import { Router } from 'express';
 const internalAuthRouter = Router();
 
 const requireSystemAuth = requireInternalAuth({
-  secret: process.env.INTERNAL_JWT_SECRET ?? '',
+  publicKey: process.env.INTERNAL_JWT_PUBLIC_KEY ?? '',
   allowedScopes: [InternalScope.AUTH_VALIDATE],
 });
 

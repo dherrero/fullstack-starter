@@ -1,14 +1,25 @@
+import { generateKeyPairSync } from 'crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Permission } from '@dto';
 import { INTERNAL_AUTH_HEADER, verifyInternalAuth } from '@internal-auth';
 import { ApiClient } from './api.client';
+
+const buildEd25519KeyPair = () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  return {
+    privateKey: privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
+    publicKey: publicKey.export({ format: 'pem', type: 'spki' }).toString(),
+  };
+};
+
+const { privateKey, publicKey } = buildEd25519KeyPair();
 
 describe('ApiClient.validateCredentials', () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     process.env.API_BASE_URL = 'http://api.test:3200';
-    process.env.INTERNAL_JWT_SECRET = 'client-test-secret';
+    process.env.INTERNAL_JWT_PRIVATE_KEY = privateKey;
   });
 
   afterEach(() => {
@@ -16,7 +27,7 @@ describe('ApiClient.validateCredentials', () => {
     vi.restoreAllMocks();
   });
 
-  it('signs a system context, calls /internal/auth/validate and returns the user', async () => {
+  it('signs an auth.validate system token and posts to the api', async () => {
     const expected = {
       id: 1,
       email: 'a@b.com',
@@ -26,9 +37,7 @@ describe('ApiClient.validateCredentials', () => {
     const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
       const token = headers[INTERNAL_AUTH_HEADER];
-      const claims = verifyInternalAuth(token, {
-        secret: 'client-test-secret',
-      });
+      const claims = await verifyInternalAuth(token, { publicKey });
       expect(claims.scope).toBe('auth.validate');
       return new Response(JSON.stringify(expected), {
         status: 200,
@@ -61,5 +70,46 @@ describe('ApiClient.validateCredentials', () => {
     await expect(
       ApiClient.validateCredentials('a@b.com', 'pwd', 'req-2'),
     ).rejects.toThrow('bad creds');
+  });
+});
+
+describe('ApiClient.rotateRefresh', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    process.env.API_BASE_URL = 'http://api.test:3200';
+    process.env.INTERNAL_JWT_PRIVATE_KEY = privateKey;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('signs a refresh.lifecycle system token and forwards the jti', async () => {
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const headers = init.headers as Record<string, string>;
+      const token = headers[INTERNAL_AUTH_HEADER];
+      const claims = await verifyInternalAuth(token, { publicKey });
+      expect(claims.scope).toBe('refresh.lifecycle');
+      return new Response(
+        JSON.stringify({
+          status: 'rotated',
+          userId: 1,
+          familyId: 'fam-1',
+          parentJti: 'jti-1',
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await ApiClient.rotateRefresh('jti-1', 'req-3');
+
+    expect(result.familyId).toBe('fam-1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test:3200/internal/refresh/rotate',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 });
