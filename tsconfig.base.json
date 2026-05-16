@@ -18,8 +18,10 @@
     "baseUrl": ".",
     "paths": {
       "@dto": ["libs/rest-dto/src/index.ts"],
+      "@internal-auth": ["libs/internal-auth/src/index.ts"],
       "@front/*": ["apps/front/src/*"],
-      "@back/*": ["apps/back/src/*"]
+      "@api/*": ["apps/api/src/*"],
+      "@gateway/*": ["apps/gateway/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

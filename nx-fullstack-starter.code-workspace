@@ -9,12 +9,20 @@
       "path": "./apps/front"
     },
     {
-      "name": "Backend",
-      "path": "./apps/back"
+      "name": "Gateway",
+      "path": "./apps/gateway"
+    },
+    {
+      "name": "API",
+      "path": "./apps/api"
     },
     {
       "name": "Shared DTOs",
       "path": "./libs/rest-dto"
+    },
+    {
+      "name": "Internal Auth",
+      "path": "./libs/internal-auth"
     },
     {
       "name": "DB",
@@ -68,7 +76,13 @@
       "typescript",
       "typescriptreact"
     ],
-    "eslint.workingDirectories": ["apps/front", "apps/back", "libs/rest-dto"],
+    "eslint.workingDirectories": [
+      "apps/front",
+      "apps/api",
+      "apps/gateway",
+      "libs/rest-dto",
+      "libs/internal-auth"
+    ],
     "prettier.configPath": ".prettierrc",
     "prettier.requireConfig": true,
     "editor.rulers": [80, 120],
@@ -151,9 +165,22 @@
         "problemMatcher": []
       },
       {
-        "label": "Start Backend",
+        "label": "Start API",
         "type": "shell",
-        "command": "npm run start:back",
+        "command": "npm run start:api",
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Start Gateway",
+        "type": "shell",
+        "command": "npm run start:gateway",
         "group": "build",
         "presentation": {
           "echo": true,
@@ -229,10 +256,22 @@
         "sourceMaps": true
       },
       {
-        "name": "Debug Backend",
+        "name": "Debug API",
         "type": "node",
         "request": "launch",
-        "program": "${workspaceFolder}/apps/back/src/main.ts",
+        "program": "${workspaceFolder}/apps/api/src/main.ts",
+        "env": {
+          "NODE_ENV": "development"
+        },
+        "console": "integratedTerminal",
+        "restart": true,
+        "protocol": "inspector"
+      },
+      {
+        "name": "Debug Gateway",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/apps/gateway/src/main.ts",
         "env": {
           "NODE_ENV": "development"
         },

@@ -11,52 +11,78 @@ services:
       - starter-postgresdb:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d
     networks:
-      - back-starter-network
+      - internal-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRESDB_USER}']
       interval: 10s
       timeout: 5s
       retries: 5
-  back:
+
+  api:
     depends_on:
-      - postgresdb
+      postgresdb:
+        condition: service_healthy
     build:
       context: .
-      dockerfile: apps/back/Dockerfile
-    container_name: back
+      dockerfile: apps/api/Dockerfile
+    container_name: api
     restart: unless-stopped
     environment:
       - NODE_PORT=${NODE_PORT:-3200}
+      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_PRODUCTION=${NODE_PRODUCTION:-true}
       - POSTGRESDB_USER=${POSTGRESDB_USER}
       - POSTGRESDB_PASSWORD=${POSTGRESDB_PASSWORD}
       - POSTGRESDB_DATABASE=${POSTGRESDB_DATABASE}
       - POSTGRESDB_PORT=${POSTGRESDB_PORT:-5432}
       - POSTGRESDB_HOST=postgresdb
-      - NODE_JWT_SECRET=${NODE_JWT_SECRET}
-      - NODE_JWT_ACCESS_EXPIRES_IN=${NODE_JWT_ACCESS_EXPIRES_IN}
-      - NODE_JWT_REFRESH_EXPIRES_IN=${NODE_JWT_REFRESH_EXPIRES_IN}
-      - NODE_HASH_SALT_ROUNDS=${NODE_HASH_SALT_ROUNDS}
-      - NODE_PRODUCTION=${NODE_PRODUCTION}
+      - INTERNAL_JWT_SECRET=${INTERNAL_JWT_SECRET}
+      - HASH_SALT_ROUNDS=${HASH_SALT_ROUNDS:-10}
       - NODE_UPLOAD_FILES=${NODE_UPLOAD_FILES:-uploads}
-    ports:
-      - '${NODE_PORT:-3200}'
     networks:
-      - back-starter-network
+      - internal-network
     volumes:
-      - upload_files:/home/back/${NODE_UPLOAD_FILES}
+      - upload_files:/home/app-api/${NODE_UPLOAD_FILES:-uploads}
       - tmp:/tmp
+
+  gateway:
+    depends_on:
+      - api
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    environment:
+      - GATEWAY_PORT=${GATEWAY_PORT:-3100}
+      - NODE_ENV=${NODE_ENV:-production}
+      - API_BASE_URL=http://api:${NODE_PORT:-3200}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-4h}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-8h}
+      - INTERNAL_JWT_SECRET=${INTERNAL_JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - SERVICE_FQDN_GATEWAY=${SERVICE_FQDN_GATEWAY}
+    ports:
+      - '${GATEWAY_PORT:-3100}'
+    networks:
+      - edge-network
+      - internal-network
+
   front:
     build:
       context: .
       dockerfile: apps/front/Dockerfile
     container_name: front
     depends_on:
-      - back
+      - gateway
     restart: unless-stopped
+    environment:
+      - SERVICE_FQDN_FRONT=${SERVICE_FQDN_FRONT}
     ports:
       - '${FRONT_PORT:-80}'
     networks:
-      - back-starter-network
+      - edge-network
 
 volumes:
   starter-postgresdb:
@@ -64,4 +90,6 @@ volumes:
   tmp:
 
 networks:
-  back-starter-network:
+  edge-network:
+  internal-network:
+    internal: true

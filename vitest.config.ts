@@ -15,8 +15,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@dto': resolve(__dirname, 'libs/rest-dto/src/index.ts'),
+      '@internal-auth': resolve(__dirname, 'libs/internal-auth/src/index.ts'),
       '@front': resolve(__dirname, 'apps/front/src'),
-      '@back': resolve(__dirname, 'apps/back/src'),
+      '@api': resolve(__dirname, 'apps/api/src'),
+      '@gateway': resolve(__dirname, 'apps/gateway/src'),
     },
   },
 });
