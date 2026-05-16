@@ -41,7 +41,8 @@ const buildResponse = () => {
 };
 
 beforeEach(() => {
-  process.env.JWT_SECRET = 'gateway-test-secret';
+  process.env.JWT_ACCESS_SECRET = 'gateway-access-secret';
+  process.env.JWT_REFRESH_SECRET = 'gateway-refresh-secret';
   process.env.JWT_EXPIRES_IN = '1h';
   process.env.JWT_REFRESH_EXPIRES_IN = '8h';
   process.env.NODE_ENV = 'development';

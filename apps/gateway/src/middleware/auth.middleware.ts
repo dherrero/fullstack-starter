@@ -102,7 +102,7 @@ export const hasPermission =
     }
 
     try {
-      const decoded = tokenService.verifyToken(accessToken);
+      const decoded = tokenService.verifyAccessToken(accessToken);
       if (
         requiredPermission &&
         !hasAnyPermission(decoded.permissions, requiredPermission)
@@ -143,7 +143,7 @@ const refreshAndContinue = async (
   }
 
   try {
-    const decoded = tokenService.verifyToken(refreshToken);
+    const decoded = tokenService.verifyRefreshToken(refreshToken);
     const user: UserContext = {
       id: decoded.id,
       email: decoded.email,
