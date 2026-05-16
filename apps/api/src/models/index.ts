@@ -1,3 +1,6 @@
+import RefreshTokenFamily, {
+  RefreshTokenFamilyModel,
+} from './refresh-token-family.model';
 import User, { UserModel } from './user.model';
 
-export { User, UserModel };
+export { RefreshTokenFamily, RefreshTokenFamilyModel, User, UserModel };

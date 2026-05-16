@@ -13,4 +13,5 @@ export const INTERNAL_SYSTEM_SUBJECT = 'system';
 export enum InternalScope {
   USER_REQUEST = 'user.request',
   AUTH_VALIDATE = 'auth.validate',
+  REFRESH_LIFECYCLE = 'refresh.lifecycle',
 }

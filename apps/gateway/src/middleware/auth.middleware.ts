@@ -1,6 +1,8 @@
 import HttpResponser from '@gateway/adapters/http/http.responser';
+import { ApiClient } from '@gateway/clients/api.client';
 import { tokenService } from '@gateway/services';
 import { Permission } from '@dto';
+import { randomUUID } from 'crypto';
 import type { CookieOptions, NextFunction, Request, Response } from 'express';
 import { TokenExpiredError } from 'jsonwebtoken';
 
@@ -40,16 +42,51 @@ const writeAccessTokenHeader = async (res: Response, user: UserContext) => {
   res.setHeader('Authorization', accessToken);
 };
 
+interface IssueRefreshOptions {
+  user: UserContext & { remember?: boolean };
+  familyId: string;
+  parentJti?: string;
+  requestId: string;
+}
+
+const issueRefreshAndRecord = async (
+  res: Response,
+  options: IssueRefreshOptions,
+) => {
+  const jti = randomUUID();
+  const refreshToken = await tokenService.generateRefreshToken({
+    id: options.user.id,
+    email: options.user.email,
+    permissions: options.user.permissions,
+    remember: options.user.remember,
+    jti,
+  });
+  await ApiClient.recordRefresh(
+    {
+      userId: options.user.id,
+      familyId: options.familyId,
+      jti,
+      parentJti: options.parentJti,
+    },
+    options.requestId,
+  );
+  const maxAge = options.user.remember
+    ? 365 * 24 * 60 * 60 * 1000
+    : 8 * 60 * 60 * 1000;
+  res.cookie(REFRESH_COOKIE, refreshToken, buildCookieOptions(maxAge));
+};
+
 /**
- * Issue a fresh access token. When `issueRefreshCookie` is true a new
- * refresh JWT — carrying the full user context — is placed in the
- * HttpOnly cookie, so the gateway can rotate access tokens without ever
- * touching the database.
+ * Issue a fresh access token plus (when requested) a refresh token. The
+ * refresh JWT is recorded in the api's refresh-token-family table so it
+ * can later be rotated and so reuse can be detected.
  */
 export const respondWithTokens = async (
   res: Response,
   userData: UserContext & { remember?: boolean },
-  options: { issueRefreshCookie?: boolean } = {},
+  options:
+    | { issueRefreshCookie: true; requestId: string }
+    | { issueRefreshCookie?: false } = {},
 ) => {
   await writeAccessTokenHeader(res, {
     id: userData.id,
@@ -58,21 +95,37 @@ export const respondWithTokens = async (
   });
 
   if (options.issueRefreshCookie) {
-    const refreshToken = await tokenService.generateRefreshToken({
-      id: userData.id,
-      email: userData.email,
-      permissions: userData.permissions,
-      remember: userData.remember,
+    await issueRefreshAndRecord(res, {
+      user: userData,
+      familyId: randomUUID(),
+      requestId: options.requestId,
     });
-    const maxAge = userData.remember
-      ? 365 * 24 * 60 * 60 * 1000
-      : 8 * 60 * 60 * 1000;
-    res.cookie(REFRESH_COOKIE, refreshToken, buildCookieOptions(maxAge));
   }
 };
 
 export const clearRefreshCookie = (res: Response) => {
   res.clearCookie(REFRESH_COOKIE, buildCookieOptions());
+};
+
+/**
+ * Best-effort revoke of the refresh family attached to the current
+ * cookie, used by /logout. Failure is swallowed so a logout always
+ * succeeds even if the api is momentarily unreachable.
+ */
+export const revokeCurrentRefreshFamily = async (
+  req: Request,
+  requestId: string,
+): Promise<void> => {
+  const refreshToken = req.cookies?.[REFRESH_COOKIE];
+  if (!refreshToken) return;
+  try {
+    const decoded = tokenService.verifyRefreshToken(refreshToken);
+    if (decoded.jti) {
+      await ApiClient.revokeRefresh({ jti: decoded.jti }, requestId);
+    }
+  } catch {
+    /* expired / invalid refresh — nothing to revoke */
+  }
 };
 
 /**
@@ -142,8 +195,16 @@ const refreshAndContinue = async (
     );
   }
 
+  let decoded;
   try {
-    const decoded = tokenService.verifyRefreshToken(refreshToken);
+    decoded = tokenService.verifyRefreshToken(refreshToken);
+  } catch {
+    return HttpResponser.errorJson(res, { message: 'Invalid token' }, 401);
+  }
+
+  const requestId = randomUUID();
+  try {
+    const rotation = await ApiClient.rotateRefresh(decoded.jti, requestId);
     const user: UserContext = {
       id: decoded.id,
       email: decoded.email,
@@ -163,8 +224,22 @@ const refreshAndContinue = async (
 
     res.locals.user = user;
     await writeAccessTokenHeader(res, user);
+    await issueRefreshAndRecord(res, {
+      user: { ...user, remember: decoded.remember },
+      familyId: rotation.familyId,
+      parentJti: rotation.parentJti,
+      requestId,
+    });
     return next();
-  } catch {
-    return HttpResponser.errorJson(res, { message: 'Invalid token' }, 401);
+  } catch (err) {
+    const statusCode = (err as { statusCode?: number })?.statusCode ?? 401;
+    // Reuse-detected / chain revoked: also clear the cookie so the
+    // attacker (and the legit user) is forced back through /login.
+    clearRefreshCookie(res);
+    return HttpResponser.errorJson(
+      res,
+      { message: 'Refresh rejected' },
+      statusCode,
+    );
   }
 };

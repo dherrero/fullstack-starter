@@ -12,50 +12,109 @@ interface ValidateCredentialsResponse {
   permissions: Permission[];
 }
 
+interface RotateRefreshResponse {
+  status: 'rotated';
+  userId: number;
+  familyId: string;
+  parentJti: string;
+}
+
 const baseUrl = () =>
   process.env.API_BASE_URL?.replace(/\/$/, '') ?? 'http://api:3200';
 
 const internalSecret = () => process.env.INTERNAL_JWT_SECRET ?? '';
 
+const callApi = async <T>(
+  path: string,
+  body: unknown,
+  scope: InternalScope,
+  requestId: string,
+  fallbackError: string,
+): Promise<T> => {
+  const token = signSystemContext(
+    { scope, requestId },
+    { secret: internalSecret() },
+  );
+
+  const response = await fetch(`${baseUrl()}${path}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      [INTERNAL_AUTH_HEADER]: token,
+      [INTERNAL_REQUEST_ID_HEADER]: requestId,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = fallbackError;
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data?.error) message = data.error;
+    } catch {
+      /* ignore body parse error */
+    }
+    const error = new Error(message) as Error & { statusCode?: number };
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  return (await response.json()) as T;
+};
+
 /**
  * Single point of contact between the gateway and the api service. The
- * gateway sends a `auth.validate`-scoped internal JWT so the api can
- * accept the call without a downstream user context.
+ * gateway signs a short-lived internal JWT with the right scope on each
+ * call so the api can authenticate the request without sharing the
+ * public client secret.
  */
 export class ApiClient {
-  static validateCredentials = async (
+  static validateCredentials = (
     email: string,
     password: string,
     requestId: string,
-  ): Promise<ValidateCredentialsResponse> => {
-    const token = signSystemContext(
-      { scope: InternalScope.AUTH_VALIDATE, requestId },
-      { secret: internalSecret() },
+  ): Promise<ValidateCredentialsResponse> =>
+    callApi(
+      '/internal/auth/validate',
+      { email, password },
+      InternalScope.AUTH_VALIDATE,
+      requestId,
+      'Email or password incorrect.',
     );
 
-    const response = await fetch(`${baseUrl()}/internal/auth/validate`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        [INTERNAL_AUTH_HEADER]: token,
-        [INTERNAL_REQUEST_ID_HEADER]: requestId,
-      },
-      body: JSON.stringify({ email, password }),
-    });
+  static recordRefresh = (
+    body: { userId: number; familyId: string; jti: string; parentJti?: string },
+    requestId: string,
+  ): Promise<{ recorded: true }> =>
+    callApi(
+      '/internal/refresh/record',
+      body,
+      InternalScope.REFRESH_LIFECYCLE,
+      requestId,
+      'Failed to record refresh token',
+    );
 
-    if (!response.ok) {
-      let message = 'Email or password incorrect.';
-      try {
-        const data = (await response.json()) as { error?: string };
-        if (data?.error) message = data.error;
-      } catch {
-        /* ignore body parse error */
-      }
-      const error = new Error(message) as Error & { statusCode?: number };
-      error.statusCode = response.status;
-      throw error;
-    }
+  static rotateRefresh = (
+    jti: string,
+    requestId: string,
+  ): Promise<RotateRefreshResponse> =>
+    callApi(
+      '/internal/refresh/rotate',
+      { jti },
+      InternalScope.REFRESH_LIFECYCLE,
+      requestId,
+      'Refresh chain invalid',
+    );
 
-    return (await response.json()) as ValidateCredentialsResponse;
-  };
+  static revokeRefresh = (
+    payload: { jti?: string; familyId?: string },
+    requestId: string,
+  ): Promise<unknown> =>
+    callApi(
+      '/internal/refresh/revoke',
+      payload,
+      InternalScope.REFRESH_LIFECYCLE,
+      requestId,
+      'Failed to revoke refresh token',
+    );
 }

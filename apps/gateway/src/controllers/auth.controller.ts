@@ -3,12 +3,14 @@ import { ApiClient } from '@gateway/clients/api.client';
 import {
   clearRefreshCookie,
   respondWithTokens,
+  revokeCurrentRefreshFamily,
 } from '@gateway/middleware/auth.middleware';
 import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 
 class AuthController {
   login = async (req: Request, res: Response) => {
+    const requestId = randomUUID();
     try {
       const { email, password, remember } = req.body ?? {};
       if (!email || !password) {
@@ -22,7 +24,7 @@ class AuthController {
       const user = await ApiClient.validateCredentials(
         email,
         password,
-        randomUUID(),
+        requestId,
       );
       await respondWithTokens(
         res,
@@ -32,7 +34,7 @@ class AuthController {
           permissions: user.permissions,
           remember,
         },
-        { issueRefreshCookie: true },
+        { issueRefreshCookie: true, requestId },
       );
       return HttpResponser.successEmpty(res);
     } catch (err) {
@@ -41,11 +43,14 @@ class AuthController {
     }
   };
 
-  logout = async (_req: Request, res: Response) => {
+  logout = async (req: Request, res: Response) => {
+    const requestId = randomUUID();
     try {
+      await revokeCurrentRefreshFamily(req, requestId);
       clearRefreshCookie(res);
       return HttpResponser.successEmpty(res);
     } catch (err) {
+      clearRefreshCookie(res);
       return HttpResponser.errorJson(res, err as Error);
     }
   };

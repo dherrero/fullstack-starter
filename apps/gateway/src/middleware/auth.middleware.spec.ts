@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
 import { Permission } from '@dto';
 import {
@@ -40,12 +40,40 @@ const buildResponse = () => {
   };
 };
 
+const FAMILY = 'family-uuid';
+
+const mockFetchResponses = (
+  responses: Array<{ status?: number; body?: unknown }>,
+) => {
+  const fetchMock = vi.fn();
+  for (const r of responses) {
+    fetchMock.mockImplementationOnce(
+      async () =>
+        new Response(JSON.stringify(r.body ?? {}), {
+          status: r.status ?? 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+  }
+  globalThis.fetch = fetchMock as typeof fetch;
+  return fetchMock;
+};
+
+const originalFetch = globalThis.fetch;
+
 beforeEach(() => {
   process.env.JWT_ACCESS_SECRET = 'gateway-access-secret';
   process.env.JWT_REFRESH_SECRET = 'gateway-refresh-secret';
+  process.env.INTERNAL_JWT_SECRET = 'internal-secret';
+  process.env.API_BASE_URL = 'http://api.test:3200';
   process.env.JWT_EXPIRES_IN = '1h';
   process.env.JWT_REFRESH_EXPIRES_IN = '8h';
   process.env.NODE_ENV = 'development';
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  vi.restoreAllMocks();
 });
 
 describe('hasPermission', () => {
@@ -61,18 +89,20 @@ describe('hasPermission', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('accepts a valid access token and exposes the user context', async () => {
+  it('accepts a valid access token without contacting the api', async () => {
     const accessToken = await tokenService.generateAccessToken({
       id: 7,
       email: 'a@b.com',
       permissions: [Permission.ADMIN],
     });
-
     const refreshToken = await tokenService.generateRefreshToken({
       id: 7,
       email: 'a@b.com',
       permissions: [Permission.ADMIN],
     });
+
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
 
     const req = buildRequest({
       header: (name: string) =>
@@ -85,12 +115,76 @@ describe('hasPermission', () => {
     await hasPermission(Permission.ADMIN)(req, res, next as NextFunction);
 
     expect(next).toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(res.locals.user).toEqual(
-      expect.objectContaining({
-        id: 7,
-        email: 'a@b.com',
-        permissions: [Permission.ADMIN],
-      }),
+      expect.objectContaining({ id: 7, email: 'a@b.com' }),
+    );
+  });
+
+  it('rotates via the api when no access token is present', async () => {
+    const refreshToken = await tokenService.generateRefreshToken({
+      id: 7,
+      email: 'a@b.com',
+      permissions: [Permission.ADMIN],
+    });
+
+    const fetchMock = mockFetchResponses([
+      {
+        status: 200,
+        body: {
+          status: 'rotated',
+          userId: 7,
+          familyId: FAMILY,
+          parentJti: 'old-jti',
+        },
+      },
+      { status: 201, body: { recorded: true } },
+    ]);
+
+    const req = buildRequest({
+      header: () => undefined,
+      cookies: { refreshToken },
+    });
+    const { res, setHeader, cookie } = buildResponse();
+    const next = vi.fn();
+
+    await hasPermission()(req, res, next as NextFunction);
+
+    expect(next).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(setHeader).toHaveBeenCalledWith('Authorization', expect.any(String));
+    expect(cookie).toHaveBeenCalledWith(
+      'refreshToken',
+      expect.any(String),
+      expect.objectContaining({ httpOnly: true }),
+    );
+  });
+
+  it('clears the cookie and 401s when the api reports reuse', async () => {
+    const refreshToken = await tokenService.generateRefreshToken({
+      id: 7,
+      email: 'a@b.com',
+      permissions: [Permission.ADMIN],
+    });
+
+    mockFetchResponses([
+      { status: 401, body: { error: 'Refresh chain reused-revoked' } },
+    ]);
+
+    const req = buildRequest({
+      header: () => undefined,
+      cookies: { refreshToken },
+    });
+    const { res, status, clearCookie } = buildResponse();
+    const next = vi.fn();
+
+    await hasPermission()(req, res, next as NextFunction);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+    expect(clearCookie).toHaveBeenCalledWith(
+      'refreshToken',
+      expect.objectContaining({ httpOnly: true }),
     );
   });
 
@@ -100,7 +194,6 @@ describe('hasPermission', () => {
       email: 'a@b.com',
       permissions: [Permission.READ_SOME_ENTITY],
     });
-
     const refreshToken = await tokenService.generateRefreshToken({
       id: 7,
       email: 'a@b.com',
@@ -120,31 +213,13 @@ describe('hasPermission', () => {
     expect(status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });
-
-  it('rotates the access token from the refresh cookie when missing', async () => {
-    const refreshToken = await tokenService.generateRefreshToken({
-      id: 7,
-      email: 'a@b.com',
-      permissions: [Permission.ADMIN],
-    });
-
-    const req = buildRequest({
-      header: () => undefined,
-      cookies: { refreshToken },
-    });
-    const { res, setHeader } = buildResponse();
-    const next = vi.fn();
-
-    await hasPermission()(req, res, next as NextFunction);
-
-    expect(next).toHaveBeenCalled();
-    expect(setHeader).toHaveBeenCalledWith('Authorization', expect.any(String));
-  });
 });
 
 describe('respondWithTokens', () => {
-  it('issues access header and refresh cookie when requested', async () => {
+  it('records a fresh family on login and sets the cookie', async () => {
+    mockFetchResponses([{ status: 201, body: { recorded: true } }]);
     const { res, setHeader, cookie } = buildResponse();
+
     await respondWithTokens(
       res,
       {
@@ -153,8 +228,9 @@ describe('respondWithTokens', () => {
         permissions: [Permission.ADMIN],
         remember: false,
       },
-      { issueRefreshCookie: true },
+      { issueRefreshCookie: true, requestId: 'req-1' },
     );
+
     expect(setHeader).toHaveBeenCalledWith('Authorization', expect.any(String));
     expect(cookie).toHaveBeenCalledWith(
       'refreshToken',
