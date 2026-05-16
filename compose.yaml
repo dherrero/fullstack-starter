@@ -1,7 +1,7 @@
 name: nx-fullstack-starter
 services:
   postgresdb:
-    image: postgres
+    image: postgres:16
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRESDB_USER}
