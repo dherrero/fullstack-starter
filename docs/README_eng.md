@@ -1,37 +1,42 @@
 # 🚀 Nx Fullstack Starter
 
-> **A complete, professional starter for TypeScript monorepos with Angular + Express.js + PostgreSQL**
+> **A complete, professional starter for TypeScript monorepos with Angular 21 + Express.js + PostgreSQL, with the backend split into microservices (gateway + api) and refresh-token rotation with reuse detection.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-22.12.0-green.svg)](https://nodejs.org/)
-[![Angular](https://img.shields.io/badge/Angular-20.3.7-red.svg)](https://angular.io/)
-[![Nx](https://img.shields.io/badge/Nx-22.0.1-blue.svg)](https://nx.dev/)
-[![Express](https://img.shields.io/badge/Express-5.1.0-green.svg)](https://expressjs.com/)
+[![Angular](https://img.shields.io/badge/Angular-21.2-red.svg)](https://angular.io/)
+[![Nx](https://img.shields.io/badge/Nx-22.7-blue.svg)](https://nx.dev/)
+[![Express](https://img.shields.io/badge/Express-5.2-green.svg)](https://expressjs.com/)
 
 🌐 [Versión en español](../README.md)
 
-A complete Nx monorepo starter including JWT authentication, user management, permissions system, internationalization, and Docker. Perfect for kicking off new fullstack projects with Angular and Node.js.
+Production-ready Nx monorepo including JWT authentication with refresh rotation, security gateway with EdDSA, user management, role-based permissions, internationalisation, and Docker. Built so SaaS and multi-service projects can start without rebuilding the auth layer from scratch.
 
 ## ✨ Main Features
 
 ### 🎯 **Tech Stack**
 
-- **Frontend**: Angular 20 with standalone components
-- **Backend**: Node.js + Express.js + TypeScript
-- **Database**: PostgreSQL with Sequelize ORM
-- **Monorepo**: Nx workspace for efficient management
-- **Build System**: Vite + esbuild (ultra-fast builds)
-- **Containerisation**: Docker + Docker Compose
+- **Frontend**: Angular 21 with standalone components, Signals API and native control flow (`@if` / `@for` / `@switch`)
+- **Gateway**: Express 5 + `http-proxy-middleware` — the only service exposed to the Internet, handles tokens and CORS
+- **API**: Express 5 + Sequelize, lives in a private network, exposes CRUDs and `/internal/*` endpoints used by the gateway
+- **Database**: PostgreSQL 16
+- **Monorepo**: Nx 22 for efficient management
+- **Build System**: esbuild (backend) + Vite (frontend)
+- **Containerisation**: Docker + Docker Compose with split `edge-network` and `internal-network`
 - **UI**: Bootstrap 5 + NgBootstrap
-- **i18n**: Transloco (Spanish / Valencian)
+- **i18n**: Transloco (Spanish / Valencian / English)
 
-### 🔐 **Authentication & Security**
+### 🔐 **Authentication & Security** — see [`SECURITY.md`](SECURITY.md)
 
-- JWT with access and refresh tokens
-- Role-based permissions system
-- Route guards
-- Automatic HTTP interceptors
-- Secure password hashing with bcrypt
+- Microservices architecture: public **gateway** + private **api**. The api never talks directly to clients; the gateway signs a short-lived EdDSA internal JWT before proxying.
+- Client JWTs with **two separate secrets** (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`), plus `typ` and `jti` claims.
+- **Refresh rotation with reuse detection**: the `refresh_token_family` table revokes the whole family when an already-rotated cookie is replayed.
+- **Internal Ed25519 JWT** between gateway and api: the gateway holds the private key (signs), the api only the public key (verifies). Privilege separation: a compromised api cannot mint tokens.
+- Role-based permissions (`ADMIN`, `WRITE_SOME_ENTITY`, `READ_SOME_ENTITY`), Angular guards and a `requireInternalAuth` middleware that enforces scope per route.
+- Automatic HTTP interceptors.
+- Secure password hashing with bcrypt.
+
+> **Before first boot**, generate the Ed25519 keys and JWT secrets following [`SECURITY.md`](SECURITY.md).
 
 ### 🌍 **Internationalisation**
 
@@ -42,36 +47,45 @@ A complete Nx monorepo starter including JWT authentication, user management, pe
 
 ### 🏗️ **Architecture**
 
-- Controller-Service-Repository pattern
-- DTOs shared between frontend and backend
-- Centralised authentication middleware
-- Unified error handling
-- Robust data validation
+```
+┌──────────┐   cookie+Authorization    ┌──────────┐   X-Internal-Auth (EdDSA)   ┌─────┐
+│  Client  │ ─────────────────────────▶│ Gateway  │ ──────────────────────────▶ │ API │
+└──────────┘                            └──────────┘                              └─────┘
+                                          (public)                               (private)
+                                            :3100                                  :3200
+```
+
+- Controller-Service-Repository pattern inside the api
+- Shared DTOs between frontend and backend in `libs/rest-dto`
+- Internal gateway↔api contract in `libs/internal-auth` (Ed25519 + scopes)
+- Centralised authentication middleware (`requireInternalAuth` by scope)
+- Unified error handling (`HttpResponser`, `sequelizeErrorMiddleware`)
+- Soft deletes on every entity (`deleted`, `createdAt`, `updatedAt`, `deletedAt`)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 ```bash
-node --version  # >= 22.12.0
-npm --version   # >= 10.9.0
+node --version   # >= 22.12.0
+npm --version    # >= 10.9.0
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/dherrero/nx-fullstack-starter.git
-cd nx-fullstack-starter
+git clone https://github.com/dherrero/fullstack-starter.git
+cd fullstack-starter
 
 # 2. Install dependencies
 npm install
 
-# 3. Configure environment variables
+# 3. Configure environment variables (includes Ed25519 keys — see SECURITY.md)
 cp .env.example .env
-# Edit .env with your settings
+# Edit .env with your settings and the generated keys
 
 # 4. Start development
 npm run dev
@@ -80,7 +94,8 @@ npm run dev
 ### Application Access
 
 - **Frontend**: http://localhost:4200
-- **Backend API**: http://localhost:3200
+- **Gateway (public)**: http://localhost:3100/api/v1/
+- **API (private)**: http://localhost:3200 (only reachable via the gateway under docker)
 - **Database**: localhost:5432
 
 ### Default Credentials
@@ -96,17 +111,19 @@ Password: 123456
 
 ```bash
 # Full development (recommended)
-npm run dev              # Database + Backend + Frontend
+npm run dev              # DB + API + Gateway + Frontend in parallel
 
 # Step by step
 npm run dev:db           # Database only
-npm run dev:back         # Backend only (waits for DB)
-npm run dev:front        # Frontend only (waits for Backend)
+npm run dev:api          # API only (waits for DB)
+npm run dev:gateway      # Gateway only (waits for API)
+npm run dev:front        # Frontend only (waits for Gateway)
 
 # Individual commands
 npm run start:front      # Start frontend
-npm run start:back       # Start backend
-npm run start:both       # Start both
+npm run start:api        # Start api
+npm run start:gateway    # Start gateway
+npm run start:all        # Start all three services
 ```
 
 ### Database Management
@@ -119,11 +136,25 @@ npm run dev:db:clean     # Clean DB volumes
 ### Build & Deploy
 
 ```bash
+# Build
 npm run build:front      # Build frontend
-npm run build:back       # Build backend
-npm run build            # Build both
+npm run build:api        # Build api
+npm run build:gateway    # Build gateway
+npm run build            # Build all three
 
-npm run docker:up        # Start with Docker
+# Docker
+npm run docker:up        # Bring up the full stack
+```
+
+### Tests
+
+```bash
+npm run test                  # Everything (front excluded — uses its own config)
+npm run test:front            # Frontend tests
+npm run test:api              # API tests
+npm run test:gateway          # Gateway tests
+npm run test:internal-auth    # Internal-auth lib tests
+npm run test:coverage         # Coverage report
 ```
 
 ## 📁 Project Structure
@@ -131,26 +162,34 @@ npm run docker:up        # Start with Docker
 ```
 nx-fullstack-starter/
 ├── apps/
-│   ├── front/                    # Angular application
+│   ├── front/                    # Angular 21 application
 │   │   ├── src/app/
 │   │   │   ├── components/       # Reusable components
-│   │   │   ├── pages/            # Main pages
-│   │   │   ├── libs/             # Feature modules
+│   │   │   ├── pages/            # Pages (home, login)
+│   │   │   ├── libs/auth/        # Authentication module (service, guards)
 │   │   │   └── services/         # Business services
 │   │   └── src/assets/i18n/      # Translation files
-│   └── back/                     # Node.js API
-│       ├── src/
-│       │   ├── controllers/      # Route controllers
-│       │   ├── services/         # Business logic
-│       │   ├── models/           # Sequelize models
-│       │   ├── routes/           # Route definitions
-│       │   └── adapters/         # External adapters
-│       └── .env                  # Environment variables
+│   ├── gateway/                  # Public service (Express + http-proxy-middleware)
+│   │   └── src/
+│   │       ├── controllers/      # auth.controller (login/logout)
+│   │       ├── middleware/       # hasPermission, refresh rotation
+│   │       ├── services/         # tokenService (client JWT signing)
+│   │       ├── clients/          # api.client (gateway → api)
+│   │       └── routes/           # auth, health, proxy
+│   └── api/                      # Private service (Express + Sequelize)
+│       └── src/
+│           ├── controllers/      # internal-auth, refresh-lifecycle, user-crud
+│           ├── services/         # AbstractCrudService, refresh-token-family
+│           ├── models/           # Sequelize: User, RefreshTokenFamily
+│           ├── routes/           # /internal/* + /v1/*
+│           └── adapters/         # db, http
 ├── libs/
-│   └── rest-dto/                 # Shared DTOs
-├── db/                           # Database scripts
-├── nginx/                        # Nginx configuration
-└── compose.yaml                  # Docker Compose
+│   ├── rest-dto/                 # Shared DTOs front ↔ back
+│   └── internal-auth/            # EdDSA JWT + requireInternalAuth middleware
+├── db/                           # SQL migrations (10.user, 20.refresh_token_family)
+├── nginx/                        # Nginx configuration (front in prod)
+├── docs/                         # Documentation (SECURITY.md, etc.)
+└── compose.yaml                  # Docker Compose with split networks
 ```
 
 ## 🤖 Claude Code Friendly — Agent System
@@ -206,13 +245,13 @@ Expert in PostgreSQL and MongoDB schema design, zero-downtime migrations, indexi
 
 #### 🔧 Backend Developer
 
-Expert in Express + Sequelize following a 4-layer architecture: Routes → Controllers → Services → Models.
+Expert in Express + Sequelize following a 4-layer architecture: Routes → Controllers → Services → Models. Works across `apps/api` (business logic) and `apps/gateway` (public auth, proxy).
 
 - `AbstractCrudService` / `AbstractCrudController` patterns to minimise boilerplate
 - All HTTP responses through `HttpResponser` (never bare `res.json()`)
-- JWT authentication with httpOnly cookies for the refresh token
-- Per-route permissions via `authController.hasPermission(Permission.X)`
-- Vitest unit tests with mocks only at boundaries (DB, HTTP)
+- API routes are protected with `requireInternalAuth({ allowedScopes, requiredPermissions })` from `libs/internal-auth`
+- Gateway routes are protected with `hasPermission(Permission.X)` from the local middleware
+- Vitest unit tests with mocks only at the boundaries (DB, HTTP, fetch)
 
 #### 🎨 Frontend Developer
 
@@ -220,6 +259,7 @@ Expert in Angular following Clean Architecture and the latest official best prac
 
 - Standalone components with `OnPush` and Signals API (`signal`, `computed`, `linkedSignal`, `resource`)
 - `inject()` for dependency injection — never constructor injection
+- **Native control flow** (`@if`, `@for`, `@switch`) — no `*ngIf` or `*ngFor` in new code
 - Lazy-loaded routes with `loadComponent()` / `loadChildren()`
 - Signal Forms for new forms (Angular v21+)
 - DTOs imported from `libs/rest-dto` (single source of truth, never redefined locally)
@@ -265,10 +305,11 @@ To activate agile mode with Leantime tracking:
 1. **Initial setup**
 
    ```bash
-   git clone <repo-url>
-   cd nx-fullstack-starter
+   git clone https://github.com/dherrero/fullstack-starter.git
+   cd fullstack-starter
    npm install
    cp .env.example .env
+   # Generate Ed25519 keys — see SECURITY.md
    ```
 
 2. **Daily development**
@@ -277,14 +318,18 @@ To activate agile mode with Leantime tracking:
    # Terminal 1: Database
    npm run dev:db
 
-   # Terminal 2: Backend
-   npm run dev:back
+   # Terminal 2: API
+   npm run dev:api
 
-   # Terminal 3: Frontend
+   # Terminal 3: Gateway
+   npm run dev:gateway
+
+   # Terminal 4: Frontend
    npm run dev:front
    ```
 
 3. **Before committing**
+
    ```bash
    npm run lint
    npm run test
@@ -293,20 +338,21 @@ To activate agile mode with Leantime tracking:
 
 ### 🏗️ **Architecture & Patterns**
 
-#### **Frontend (Angular)**
+#### **Frontend (Angular 21)**
 
-- **Standalone Components**: Use independent components
-- **Services**: Business logic in injectable services
-- **Guards**: Route protection with guards
-- **Interceptors**: Automatic authentication handling
-- **Reactive Forms**: Reactive forms with validation
+- **Standalone Components** with `OnPush`
+- **Native control flow** (`@if`, `@for`, `@switch`) — no `*ngIf` or `*ngFor` in new code
+- **Services**: business logic injected with `inject()`
+- **Guards**: route protection with `canActivateFn`
+- **Interceptors**: automatic authentication handling
+- **Reactive Forms**: reactive forms (Signal Forms from v21+)
 
-#### **Backend (Express)**
+#### **Backend (Gateway + API)**
 
-- **Controller-Service-Repository**: Clear separation of concerns
-- **Middleware**: Centralised authentication and validation
-- **DTOs**: Typed data transfer
-- **Error Handling**: Centralised error management
+- **Gateway**: issues and verifies the client JWT, injects `X-Internal-Auth` (EdDSA) on every proxied request
+- **API**: every `/v1/*` or `/internal/*` route sits behind `requireInternalAuth` with the right scope
+- **DTOs**: shared typed contracts in `libs/rest-dto`
+- **Error Handling**: unified Sequelize error middleware + `HttpResponser`
 
 ### 🔧 **Best Practices**
 
@@ -314,14 +360,14 @@ To activate agile mode with Leantime tracking:
 
 ```bash
 # Create feature branch
-git checkout -b feature/new-feature
+git checkout -b feat/new-feature
 
 # Develop with frequent commits
 git add .
 git commit -m "feat: add new feature"
 
 # Push and PR
-git push origin feature/new-feature
+git push origin feat/new-feature
 ```
 
 #### **Commit Structure**
@@ -346,11 +392,13 @@ chore: maintenance tasks
 ### 🧪 **Testing**
 
 ```bash
-# Unit tests
+# Per project
 npm run test:front
-npm run test:back
+npm run test:api
+npm run test:gateway
+npm run test:internal-auth
 
-# E2E tests
+# E2E tests (once they exist)
 npm run e2e:front
 
 # Coverage
@@ -363,18 +411,20 @@ npm run test:coverage
 
 ```bash
 # Database only
-docker-compose -f docker-compose.db.yml up
+docker compose -f docker-compose.db.yml up
 
-# Full application
-docker-compose up
+# Full stack
+docker compose --env-file .env up
 ```
 
 #### **Production**
 
 ```bash
 npm run build
-docker-compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env up -d
 ```
+
+> Only `gateway` and `front` expose ports to the host. `api` and `postgresdb` live on `internal-network` with `internal: true`.
 
 ### 🌍 **Internationalisation**
 
@@ -396,25 +446,34 @@ echo ".env" >> .gitignore
 cp .env.example .env
 ```
 
-#### **JWT Configuration**
+#### **JWT and internal-key configuration**
 
-```typescript
-JWT_SECRET=your-super-secure-secret
-JWT_REFRESH_SECRET=your-refresh-super-secure-secret
+```env
+# Client JWTs (HS256, two independent secrets)
+JWT_ACCESS_SECRET=...        # signs access tokens
+JWT_REFRESH_SECRET=...       # signs refresh tokens
+JWT_EXPIRES_IN=4h
+JWT_REFRESH_EXPIRES_IN=8h
+
+# Internal gateway → api JWT (Ed25519, asymmetric)
+INTERNAL_JWT_PRIVATE_KEY=... # gateway only
+INTERNAL_JWT_PUBLIC_KEY=...  # api only
 ```
+
+Key generation walked through in [`SECURITY.md`](SECURITY.md).
 
 ### 🚀 **Performance**
 
 #### **Frontend**
 
-- Lazy loading of modules
+- Lazy-loaded routes
 - OnPush change detection
-- TrackBy on `*ngFor`
+- `@for` with `track` (the modern replacement for `trackBy` on `*ngFor`)
 - Preload strategies
 
 #### **Backend**
 
-- Connection pooling
+- Sequelize connection pooling
 - Query optimisation
 - Caching strategies
 - Compression middleware
@@ -424,17 +483,37 @@ JWT_REFRESH_SECRET=your-refresh-super-secure-secret
 ### Users Schema
 
 ```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  lastName VARCHAR(255) NOT NULL,
-  permission VARCHAR(50) NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  createdAt TIMESTAMP DEFAULT NOW(),
-  updatedAt TIMESTAMP DEFAULT NOW()
+CREATE TABLE public.user (
+    id bigint PRIMARY KEY,
+    email varchar(150) UNIQUE NOT NULL,
+    name varchar(150) NOT NULL,
+    lastname varchar(150),
+    permissions permission_type[] NOT NULL DEFAULT ARRAY['READ_SOME_ENTITY']::permission_type[],
+    password varchar(250) NOT NULL,
+    deleted boolean DEFAULT false,
+    createdAt timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updatedAt timestamp,
+    deletedAt timestamp
 );
 ```
+
+### Refresh-token family schema (rotation + reuse)
+
+```sql
+CREATE TABLE public.refresh_token_family (
+    id bigserial PRIMARY KEY,
+    user_id bigint NOT NULL REFERENCES public.user(id) ON DELETE CASCADE,
+    family_id uuid NOT NULL,
+    jti uuid NOT NULL UNIQUE,
+    parent_jti uuid,
+    used boolean NOT NULL DEFAULT false,
+    revoked_at timestamp,
+    createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt timestamp
+);
+```
+
+See the full flow in [`SECURITY.md`](SECURITY.md).
 
 ### Available Permissions
 
@@ -444,9 +523,7 @@ CREATE TABLE users (
 
 ## 🔧 Advanced Configuration
 
-### Environment Variables
-
-#### Backend (.env)
+### Environment Variables (`.env`)
 
 ```env
 # Database
@@ -456,25 +533,35 @@ POSTGRESDB_DATABASE=your_db_name
 POSTGRESDB_USER=postgres
 POSTGRESDB_PASSWORD=password
 
-# JWT
-JWT_SECRET=your_jwt_secret_key_here
-JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_here
-JWT_EXPIRES_IN=1h
-JWT_REFRESH_EXPIRES_IN=7d
+# Client JWT — two separate secrets
+JWT_ACCESS_SECRET=dev-access-secret-replace-me
+JWT_REFRESH_SECRET=dev-refresh-secret-replace-me
+JWT_EXPIRES_IN=4h
+JWT_REFRESH_EXPIRES_IN=8h
 
-# Server
-PORT=3200
-NODE_ENV=development
+# Internal Ed25519 JWT (PEM with literal \n)
+INTERNAL_JWT_PRIVATE_KEY=
+INTERNAL_JWT_PUBLIC_KEY=
+
+# Gateway
+GATEWAY_PORT=3100
+API_BASE_URL=http://api:3200
 CORS_ORIGIN=http://localhost:4200
+
+# API
+NODE_PORT=3200
+NODE_ENV=development
+NODE_PRODUCTION=false
+HASH_SALT_ROUNDS=10
 ```
 
-#### Frontend (environment.ts)
+### Frontend (`environment.ts`)
 
 ```typescript
-export const environment = {
+export const env = {
   production: false,
-  api: 'http://localhost:3200/api/',
-  appName: 'Nx Fullstack Starter',
+  // Relative path so the dev server proxy (Vite) forwards to the gateway
+  api: '/api/v1/',
 };
 ```
 
@@ -483,40 +570,48 @@ export const environment = {
 ### Production with Docker
 
 ```bash
-# 1. Build for production
-npm run build
-
-# 2. Create Docker images
-docker-compose -f docker-compose.prod.yml build
-
-# 3. Deploy
-docker-compose -f docker-compose.prod.yml up -d
+# 1. Generate Ed25519 keys and secrets (SECURITY.md)
+# 2. Drop them into your production .env
+# 3. Bring up the stack
+docker compose --env-file .env up -d --build
 ```
 
 ### Production Environment Variables
 
 ```env
 NODE_ENV=production
+NODE_PRODUCTION=true
 POSTGRESDB_HOST=postgresdb
 POSTGRESDB_DATABASE=production_db
-JWT_SECRET=production-secret-key
+
+# Generated with: openssl rand -base64 64
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+
+# Generated with: openssl genpkey -algorithm ed25519 ...
+INTERNAL_JWT_PRIVATE_KEY=...   # gateway only
+INTERNAL_JWT_PUBLIC_KEY=...    # api only
+
 CORS_ORIGIN=https://your-domain.com
+SERVICE_FQDN_GATEWAY=your-domain.com
+SERVICE_FQDN_FRONT=app.your-domain.com
 ```
 
 ## 🤝 Contributing
 
 1. Fork the project
-2. Create a branch for your feature (`git checkout -b feature/AmazingFeature`)
+2. Create a branch for your feature (`git checkout -b feat/AmazingFeature`)
 3. Commit your changes (`git commit -m 'feat: Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+4. Push to the branch (`git push origin feat/AmazingFeature`)
 5. Open a Pull Request
 
 ### Contribution Guide
 
 - Follow existing code conventions
-- Add tests for new functionality
-- Update documentation if necessary
-- Use descriptive commits
+- Add tests for new functionality (minimum 60% coverage)
+- Update documentation if needed
+- Use descriptive commits following Conventional Commits
+- If you touch auth/tokens, read [`SECURITY.md`](SECURITY.md) first
 
 ## 📄 Licence
 
@@ -530,16 +625,20 @@ This project is under the MIT Licence. See the `LICENSE` file for details.
 - [Express.js Docs](https://expressjs.com/)
 - [Nx Docs](https://nx.dev/)
 - [Sequelize Docs](https://sequelize.org/)
+- [`jose` (EdDSA JWT)](https://github.com/panva/jose)
+- [`http-proxy-middleware`](https://github.com/chimurai/http-proxy-middleware)
+
+### Community
+
+- [GitHub Issues](https://github.com/dherrero/fullstack-starter/issues)
+- [Discussions](https://github.com/dherrero/fullstack-starter/discussions)
 
 ### Common Issues
 
 #### Database connection error
 
 ```bash
-# Check Docker is running
-docker ps
-
-# Restart the database
+docker ps                # confirm Docker is running
 npm run dev:db:down
 npm run dev:db
 ```
@@ -547,31 +646,44 @@ npm run dev:db
 #### Port already in use
 
 ```bash
-# Kill process on port 3200
+# Gateway (3100)
+lsof -ti:3100 | xargs kill
+
+# API (3200)
 lsof -ti:3200 | xargs kill
 
-# Kill process on port 4200
+# Front (4200)
 lsof -ti:4200 | xargs kill
 ```
+
+#### Login returns 500 with `relation "refresh_token_family" does not exist`
+
+The `db/20.refresh_token_family.sql` migration didn't run. In development:
+
+```bash
+npm run dev:db:clean   # drop the volume so the init scripts run again
+npm run dev:db
+```
+
+In production, apply the SQL manually against the database.
 
 ## 🎯 Next Steps
 
 ### Starter Customisation
 
-1. **Change branding** — update `apps/front/src/assets/i18n/`, modify `styles.scss`, replace favicon and logo
-2. **Add new features** — create new modules following the existing structure
-3. **Configure the database** — add new tables in `db/`, create models, update DTOs in `libs/rest-dto/`
-4. **Implement tests** — add unit tests for services, e2e tests for critical flows
+1. **Rename the project**: `bash scripts/rename.sh my-saas`
+2. **Change branding**: text in `apps/front/src/assets/i18n/`, colours in `styles.scss`, favicon, logo
+3. **Add new entities**: SQL table in `db/`, Sequelize model in `apps/api/src/models/`, service extending `AbstractCrudService`, controller extending `AbstractCrudController`, route in `apps/api/src/routes/` protected by `requireInternalAuth`, DTO in `libs/rest-dto`
+4. **Add new microservices**: copy the `apps/api` pattern and declare the proxy route in `apps/gateway`
 
 ### Roadmap
 
-- [ ] Add more component examples
-- [ ] Implement notification system
-- [ ] Add full e2e tests
-- [ ] Create API documentation
-- [ ] Add CI/CD pipeline
-- [ ] Implement advanced logging
-- [ ] Add metrics and monitoring
+- [ ] SSO/OIDC in the gateway for enterprise customers (Okta, Azure AD, Auth0)
+- [ ] SAML for legacy tenants
+- [ ] SCIM 2.0 for bulk provisioning
+- [ ] Multi-tenant CRUDs
+- [ ] Complete e2e tests (Playwright)
+- [ ] Metrics and observability (OpenTelemetry)
 
 ---
 

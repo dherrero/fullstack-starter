@@ -1,45 +1,42 @@
 # 🚀 Nx Fullstack Starter
 
-> **Un starter completo y profesional para monorepos TypeScript con Angular 20 + Express.js + PostgreSQL**
+> **Un starter completo y profesional para monorepos TypeScript con Angular 21 + Express.js + PostgreSQL, con backend partido en microservicios (gateway + api) y rotación de refresh con detección de reuso.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-22.12.0-green.svg)](https://nodejs.org/)
-[![Angular](https://img.shields.io/badge/Angular-20.3.7-red.svg)](https://angular.io/)
-[![Nx](https://img.shields.io/badge/Nx-22.0.1-blue.svg)](https://nx.dev/)
-[![Express](https://img.shields.io/badge/Express-5.1.0-green.svg)](https://expressjs.com/)
+[![Angular](https://img.shields.io/badge/Angular-21.2-red.svg)](https://angular.io/)
+[![Nx](https://img.shields.io/badge/Nx-22.7-blue.svg)](https://nx.dev/)
+[![Express](https://img.shields.io/badge/Express-5.2-green.svg)](https://expressjs.com/)
 
 🌐 [English version](docs/README_eng.md)
 
-Un proyecto starter completo con monorepo Nx que incluye autenticación JWT, gestión de usuarios, sistema de permisos, internacionalización y Docker. Perfecto para comenzar nuevos proyectos fullstack con Angular y Node.js.
+Monorepo Nx listo para producción que incluye autenticación JWT con rotación de refresh, gateway de seguridad con EdDSA, gestión de usuarios, sistema de permisos basado en roles, internacionalización y Docker. Pensado para arrancar proyectos SaaS y multi-servicio sin tener que rehacer la capa de auth.
 
 ## ✨ Características Principales
 
 ### 🎯 **Stack Tecnológico**
 
-- **Frontend**: Angular 20 con standalone components
-- **Backend**: Node.js + Express.js + TypeScript
-- **Base de datos**: PostgreSQL con Sequelize ORM
-- **Monorepo**: Nx workspace para gestión eficiente
-- **Build System**: Vite + esbuild (build ultra-rápido)
-- **Containerización**: Docker + Docker Compose
+- **Frontend**: Angular 21 con standalone components, Signals API y control flow nativo (`@if` / `@for` / `@switch`)
+- **Gateway**: Express 5 + `http-proxy-middleware` — único servicio expuesto a Internet, gestiona tokens y CORS
+- **API**: Express 5 + Sequelize, vive en red privada, expone CRUDs y endpoints `/internal/*` para el gateway
+- **Base de datos**: PostgreSQL 16
+- **Monorepo**: Nx 22 para gestión eficiente
+- **Build System**: esbuild (backend) + Vite (frontend)
+- **Containerización**: Docker + Docker Compose con redes `edge-network` e `internal-network`
 - **UI**: Bootstrap 5 + NgBootstrap
-- **i18n**: Transloco (Español/Valenciano)
+- **i18n**: Transloco (Español/Valenciano/Inglés)
 
-### 🔐 **Autenticación & Seguridad**
+### 🔐 **Autenticación & Seguridad** — ver [`docs/SECURITY.md`](docs/SECURITY.md)
 
-- Arquitectura de microservicios: **gateway** público + **api** privado
-  (ver `docs/SECURITY.md`)
-- JWT del cliente con secretos separados access/refresh, claims `typ` y
-  `jti`, rotación de refresh con detección de reuso (revoca toda la
-  familia ante un robo de cookie)
-- JWT interno entre gateway y api firmado con **Ed25519**: sólo el
-  gateway tiene la clave privada, el api únicamente la pública
-- Sistema de permisos basado en roles, guards y directivas Angular
+- Arquitectura de microservicios: **gateway** público + **api** privado. El api nunca habla con el cliente directamente; el gateway firma un JWT interno EdDSA antes de proxiar
+- JWT del cliente con **dos secretos separados** (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`), claims `typ` y `jti`
+- **Rotación de refresh con detección de reuso**: tabla `refresh_token_family` revoca la familia completa si una cookie ya rotada se vuelve a presentar
+- **JWT interno Ed25519** entre gateway y api: el gateway tiene la clave privada (firma), el api sólo la pública (verifica). Privilegio separado: un api comprometido no puede emitir tokens
+- Sistema de permisos basado en roles (`ADMIN`, `WRITE_SOME_ENTITY`, `READ_SOME_ENTITY`), guards Angular y middleware `requireInternalAuth` por scope
 - Interceptores HTTP automáticos
 - Hashing seguro de contraseñas con bcrypt
 
-> **Antes del primer arranque** generá las claves Ed25519 y los secretos
-> JWT siguiendo [docs/SECURITY.md](docs/SECURITY.md).
+> **Antes del primer arranque** generá las claves Ed25519 y los secretos JWT siguiendo [docs/SECURITY.md](docs/SECURITY.md).
 
 ### 🌍 **Internacionalización**
 
@@ -50,11 +47,20 @@ Un proyecto starter completo con monorepo Nx que incluye autenticación JWT, ges
 
 ### 🏗️ **Arquitectura**
 
-- Patrón Controller-Service-Repository
-- DTOs compartidos entre frontend y backend
-- Middleware de autenticación centralizado
-- Manejo de errores unificado
-- Validación de datos robusta
+```
+┌──────────┐   cookie+Authorization    ┌──────────┐   X-Internal-Auth (EdDSA)   ┌─────┐
+│ Cliente  │ ─────────────────────────▶│ Gateway  │ ──────────────────────────▶ │ API │
+└──────────┘                            └──────────┘                              └─────┘
+                                          (público)                              (privada)
+                                            :3100                                  :3200
+```
+
+- Patrón Controller-Service-Repository en el api
+- DTOs compartidos entre frontend y backend en `libs/rest-dto`
+- Contrato interno gateway↔api en `libs/internal-auth` (Ed25519 + scopes)
+- Middleware de autenticación centralizado (`requireInternalAuth` por scope)
+- Manejo de errores unificado (`HttpResponser`, `sequelizeErrorMiddleware`)
+- Soft deletes en todas las entidades (`deleted`, `createdAt`, `updatedAt`, `deletedAt`)
 
 ## 🚀 Inicio Rápido
 
@@ -62,25 +68,25 @@ Un proyecto starter completo con monorepo Nx que incluye autenticación JWT, ges
 
 ```bash
 # Verificar versiones
-node --version  # >= 22.12.0
-npm --version   # >= 10.9.0
+node --version   # >= 22.12.0
+npm --version    # >= 10.9.0
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ### Instalación
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/dherrero/nx-fullstack-starter.git
-cd nx-fullstack-starter
+git clone https://github.com/dherrero/fullstack-starter.git
+cd fullstack-starter
 
 # 2. Instalar dependencias
 npm install
 
-# 3. Configurar variables de entorno
+# 3. Configurar variables de entorno (incluye claves Ed25519 — ver docs/SECURITY.md)
 cp .env.example .env
-# Editar .env con tus configuraciones
+# Editar .env con tus configuraciones y claves generadas
 
 # 4. Iniciar desarrollo
 npm run dev
@@ -89,7 +95,8 @@ npm run dev
 ### Acceso a la Aplicación
 
 - **Frontend**: http://localhost:4200
-- **Backend API**: http://localhost:3200
+- **Gateway (público)**: http://localhost:3100/api/v1/
+- **API (privado)**: http://localhost:3200 (sólo accesible vía gateway en docker)
 - **Base de datos**: localhost:5432
 
 ### Usuario por Defecto
@@ -105,17 +112,19 @@ Contraseña: 123456
 
 ```bash
 # Desarrollo completo (recomendado)
-npm run dev              # Base de datos + Backend + Frontend
+npm run dev              # DB + API + Gateway + Frontend en paralelo
 
 # Desarrollo por pasos
-npm run dev:db           # Solo base de datos
-npm run dev:back         # Solo backend (espera DB)
-npm run dev:front        # Solo frontend (espera Backend)
+npm run dev:db           # Sólo base de datos
+npm run dev:api          # Sólo api (espera DB)
+npm run dev:gateway      # Sólo gateway (espera api)
+npm run dev:front        # Sólo frontend (espera gateway)
 
 # Comandos individuales
 npm run start:front      # Iniciar frontend
-npm run start:back       # Iniciar backend
-npm run start:both       # Iniciar ambos
+npm run start:api        # Iniciar api
+npm run start:gateway    # Iniciar gateway
+npm run start:all        # Iniciar los tres servicios
 ```
 
 ### Gestión de Base de Datos
@@ -130,11 +139,23 @@ npm run dev:db:clean     # Limpiar volúmenes de DB
 ```bash
 # Construcción
 npm run build:front      # Construir frontend
-npm run build:back       # Construir backend
-npm run build            # Construir ambos
+npm run build:api        # Construir api
+npm run build:gateway    # Construir gateway
+npm run build            # Construir los tres
 
 # Docker
-npm run docker:up        # Iniciar con Docker
+npm run docker:up        # Levantar el stack completo
+```
+
+### Tests
+
+```bash
+npm run test                  # Todo (front excluido, usa su config)
+npm run test:front            # Tests del front
+npm run test:api              # Tests del api
+npm run test:gateway          # Tests del gateway
+npm run test:internal-auth    # Tests de la lib de auth interno
+npm run test:coverage         # Cobertura
 ```
 
 ## 📁 Estructura del Proyecto
@@ -142,26 +163,34 @@ npm run docker:up        # Iniciar con Docker
 ```
 nx-fullstack-starter/
 ├── apps/
-│   ├── front/                    # Aplicación Angular
+│   ├── front/                    # Aplicación Angular 21
 │   │   ├── src/app/
 │   │   │   ├── components/       # Componentes reutilizables
-│   │   │   ├── pages/           # Páginas principales
-│   │   │   ├── libs/            # Módulos de funcionalidad
-│   │   │   └── services/        # Servicios de negocio
-│   │   └── src/assets/i18n/     # Archivos de traducción
-│   └── back/                    # API Node.js
-│       ├── src/
-│       │   ├── controllers/     # Controladores de rutas
-│       │   ├── services/        # Lógica de negocio
-│       │   ├── models/          # Modelos de Sequelize
-│       │   ├── routes/          # Definición de rutas
-│       │   └── adapters/        # Adaptadores externos
-│       └── .env                 # Variables de entorno
+│   │   │   ├── pages/            # Páginas (home, login)
+│   │   │   ├── libs/auth/        # Módulo de autenticación (service, guards)
+│   │   │   └── services/         # Servicios de negocio
+│   │   └── src/assets/i18n/      # Archivos de traducción
+│   ├── gateway/                  # Servicio público (Express + http-proxy-middleware)
+│   │   └── src/
+│   │       ├── controllers/      # auth.controller (login/logout)
+│   │       ├── middleware/       # hasPermission, refresh rotation
+│   │       ├── services/         # tokenService (firma JWT cliente)
+│   │       ├── clients/          # api.client (gateway → api)
+│   │       └── routes/           # auth, health, proxy
+│   └── api/                      # Servicio privado (Express + Sequelize)
+│       └── src/
+│           ├── controllers/      # internal-auth, refresh-lifecycle, user-crud
+│           ├── services/         # AbstractCrudService, refresh-token-family
+│           ├── models/           # Sequelize: User, RefreshTokenFamily
+│           ├── routes/           # /internal/* + /v1/*
+│           └── adapters/         # db, http
 ├── libs/
-│   └── rest-dto/                # DTOs compartidos
-├── db/                          # Scripts de base de datos
-├── nginx/                       # Configuración Nginx
-└── compose.yaml                 # Docker Compose
+│   ├── rest-dto/                 # DTOs compartidos front ↔ back
+│   └── internal-auth/            # JWT EdDSA + requireInternalAuth middleware
+├── db/                           # Migraciones SQL (10.user, 20.refresh_token_family)
+├── nginx/                        # Configuración Nginx (front en prod)
+├── docs/                         # Documentación (SECURITY.md, etc.)
+└── compose.yaml                  # Docker Compose con redes split
 ```
 
 ## 🤖 Claude Code Friendly — Sistema de Agentes
@@ -217,13 +246,13 @@ Especialista en diseño de esquemas PostgreSQL y MongoDB, migraciones sin downti
 
 #### 🔧 Backend Developer
 
-Especialista en Express + Sequelize siguiendo arquitectura de 4 capas: Routes → Controllers → Services → Models.
+Especialista en Express + Sequelize siguiendo arquitectura de 4 capas: Routes → Controllers → Services → Models. Trabaja sobre `apps/api` (lógica de negocio) y `apps/gateway` (auth público, proxy).
 
 - Patrones `AbstractCrudService` / `AbstractCrudController` para minimizar boilerplate
 - Todas las respuestas HTTP a través de `HttpResponser` (nunca `res.json()` directo)
-- Autenticación JWT con cookies httpOnly para el refresh token
-- Permisos por ruta via `authController.hasPermission(Permission.X)`
-- Tests unitarios con Vitest, mocks solo en los límites (DB, HTTP)
+- Las rutas del api se protegen con `requireInternalAuth({ allowedScopes, requiredPermissions })` de `libs/internal-auth`
+- Las rutas del gateway se protegen con `hasPermission(Permission.X)` del middleware local
+- Tests unitarios con Vitest, mocks sólo en los límites (DB, HTTP, fetch)
 
 #### 🎨 Frontend Developer
 
@@ -231,6 +260,7 @@ Especialista en Angular siguiendo Clean Architecture y las últimas prácticas o
 
 - Componentes standalone con `OnPush` y Signals API (`signal`, `computed`, `linkedSignal`, `resource`)
 - `inject()` para inyección de dependencias — nunca constructor injection
+- **Control flow nativo** (`@if`, `@for`, `@switch`) — sin `*ngIf` ni `*ngFor` en código nuevo
 - Rutas lazy-loaded con `loadComponent()` / `loadChildren()`
 - Signal Forms para nuevos formularios (Angular v21+)
 - DTOs importados de `libs/rest-dto` (fuente única de verdad, nunca redefinidos)
@@ -276,11 +306,11 @@ Para activar el modo ágil con seguimiento en Leantime:
 1. **Configuración inicial**
 
    ```bash
-   # Clonar y configurar
-   git clone <repo-url>
-   cd nx-fullstack-starter
+   git clone https://github.com/dherrero/fullstack-starter.git
+   cd fullstack-starter
    npm install
    cp .env.example .env
+   # Generar claves Ed25519 — ver docs/SECURITY.md
    ```
 
 2. **Desarrollo diario**
@@ -289,14 +319,18 @@ Para activar el modo ágil con seguimiento en Leantime:
    # Terminal 1: Base de datos
    npm run dev:db
 
-   # Terminal 2: Backend
-   npm run dev:back
+   # Terminal 2: API
+   npm run dev:api
 
-   # Terminal 3: Frontend
+   # Terminal 3: Gateway
+   npm run dev:gateway
+
+   # Terminal 4: Frontend
    npm run dev:front
    ```
 
 3. **Antes de commit**
+
    ```bash
    npm run lint
    npm run test
@@ -305,20 +339,21 @@ Para activar el modo ágil con seguimiento en Leantime:
 
 ### 🏗️ **Arquitectura y Patrones**
 
-#### **Frontend (Angular)**
+#### **Frontend (Angular 21)**
 
-- **Standalone Components**: Usa componentes independientes
-- **Services**: Lógica de negocio en servicios inyectables
-- **Guards**: Protección de rutas con guards
-- **Interceptors**: Manejo automático de autenticación
-- **Reactive Forms**: Formularios reactivos con validación
+- **Standalone Components** con `OnPush`
+- **Control flow nativo** (`@if`, `@for`, `@switch`) — sin `*ngIf` ni `*ngFor` en código nuevo
+- **Services**: lógica de negocio inyectada con `inject()`
+- **Guards**: protección de rutas con `canActivateFn`
+- **Interceptors**: manejo automático de autenticación
+- **Reactive Forms**: formularios reactivos (Signal Forms a partir de v21+)
 
-#### **Backend (Express)**
+#### **Backend (Gateway + API)**
 
-- **Controller-Service-Repository**: Separación clara de responsabilidades
-- **Middleware**: Autenticación y validación centralizada
-- **DTOs**: Transferencia de datos tipada
-- **Error Handling**: Manejo centralizado de errores
+- **Gateway**: emite y verifica el JWT del cliente, inyecta `X-Internal-Auth` (EdDSA) en cada request proxiada
+- **API**: cualquier ruta `/v1/*` o `/internal/*` se monta detrás de `requireInternalAuth` con el scope adecuado
+- **DTOs**: tipados compartidos en `libs/rest-dto`
+- **Error Handling**: middleware unificado de errores Sequelize + `HttpResponser`
 
 ### 🔧 **Mejores Prácticas**
 
@@ -326,14 +361,14 @@ Para activar el modo ágil con seguimiento en Leantime:
 
 ```bash
 # Crear feature branch
-git checkout -b feature/nueva-funcionalidad
+git checkout -b feat/nueva-funcionalidad
 
 # Desarrollo con commits frecuentes
 git add .
 git commit -m "feat: añadir nueva funcionalidad"
 
 # Push y PR
-git push origin feature/nueva-funcionalidad
+git push origin feat/nueva-funcionalidad
 ```
 
 #### **Estructura de Commits**
@@ -358,11 +393,13 @@ chore: tareas de mantenimiento
 ### 🧪 **Testing**
 
 ```bash
-# Tests unitarios
+# Por proyecto
 npm run test:front
-npm run test:back
+npm run test:api
+npm run test:gateway
+npm run test:internal-auth
 
-# Tests e2e
+# Tests e2e (cuando haya)
 npm run e2e:front
 
 # Coverage
@@ -374,20 +411,21 @@ npm run test:coverage
 #### **Desarrollo**
 
 ```bash
-# Solo base de datos
-docker-compose -f docker-compose.db.yml up
+# Sólo base de datos
+docker compose -f docker-compose.db.yml up
 
-# Aplicación completa
-docker-compose up
+# Stack completo
+docker compose --env-file .env up
 ```
 
 #### **Producción**
 
 ```bash
-# Construir y desplegar
 npm run build
-docker-compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env up -d
 ```
+
+> Sólo `gateway` y `front` exponen puertos al exterior. `api` y `postgresdb` viven en `internal-network` con `internal: true`.
 
 ### 🌍 **Internacionalización**
 
@@ -397,18 +435,16 @@ docker-compose -f docker-compose.prod.yml up -d
 2. Actualizar `transloco-loader.service.ts`
 3. Añadir opción en `language-switcher.component.ts`
 
-#### **Añadir nuevas traducciones**
+#### **Usar traducciones**
 
 ```typescript
 // En el componente
 this.translocoService.translate('clave.traduccion');
+```
 
-// En el template
-{
-  {
-    'clave.traduccion' | transloco;
-  }
-}
+```html
+<!-- En el template -->
+{{ 'clave.traduccion' | transloco }}
 ```
 
 ### 🔐 **Seguridad**
@@ -423,44 +459,35 @@ echo ".env" >> .gitignore
 cp .env.example .env
 ```
 
-#### **JWT Configuration**
+#### **Configuración JWT y claves internas**
 
-```typescript
-// Backend: Configurar secrets seguros
-JWT_SECRET=tu-secret-super-seguro
-JWT_REFRESH_SECRET=tu-refresh-secret-super-seguro
+```env
+# JWT del cliente (HS256, dos secretos independientes)
+JWT_ACCESS_SECRET=...        # firma access tokens
+JWT_REFRESH_SECRET=...       # firma refresh tokens
+JWT_EXPIRES_IN=4h
+JWT_REFRESH_EXPIRES_IN=8h
+
+# JWT interno gateway → api (Ed25519, asimétrico)
+INTERNAL_JWT_PRIVATE_KEY=... # sólo en el gateway
+INTERNAL_JWT_PUBLIC_KEY=...  # sólo en el api
 ```
 
-### 📊 **Monitoreo y Debugging**
-
-#### **Logs del Backend**
-
-```typescript
-// Usar diferentes niveles de log
-console.log('Info:', data);
-console.warn('Warning:', warning);
-console.error('Error:', error);
-```
-
-#### **DevTools del Frontend**
-
-- Usar Angular DevTools
-- Redux DevTools para estado
-- Network tab para requests
+Generación de claves en [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ### 🚀 **Performance**
 
 #### **Frontend**
 
-- Lazy loading de módulos
+- Lazy loading de rutas
 - OnPush change detection
-- TrackBy en \*ngFor
+- `@for` con `track` (sustituye a `trackBy` de `*ngFor`)
 - Preload strategies
 
 #### **Backend**
 
-- Connection pooling
-- Query optimization
+- Connection pooling de Sequelize
+- Query optimisation
 - Caching strategies
 - Compression middleware
 
@@ -469,29 +496,47 @@ console.error('Error:', error);
 ### Esquema de Usuarios
 
 ```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  lastName VARCHAR(255) NOT NULL,
-  permission VARCHAR(50) NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  createdAt TIMESTAMP DEFAULT NOW(),
-  updatedAt TIMESTAMP DEFAULT NOW()
+CREATE TABLE public.user (
+    id bigint PRIMARY KEY,
+    email varchar(150) UNIQUE NOT NULL,
+    name varchar(150) NOT NULL,
+    lastname varchar(150),
+    permissions permission_type[] NOT NULL DEFAULT ARRAY['READ_SOME_ENTITY']::permission_type[],
+    password varchar(250) NOT NULL,
+    deleted boolean DEFAULT false,
+    createdAt timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updatedAt timestamp,
+    deletedAt timestamp
 );
 ```
+
+### Esquema de Refresh Token Family (rotación + reuso)
+
+```sql
+CREATE TABLE public.refresh_token_family (
+    id bigserial PRIMARY KEY,
+    user_id bigint NOT NULL REFERENCES public.user(id) ON DELETE CASCADE,
+    family_id uuid NOT NULL,
+    jti uuid NOT NULL UNIQUE,
+    parent_jti uuid,
+    used boolean NOT NULL DEFAULT false,
+    revoked_at timestamp,
+    createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt timestamp
+);
+```
+
+Ver detalles del flujo en [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ### Permisos Disponibles
 
 - `ADMIN`: Acceso completo al sistema
-- `WRITE_SOME_ENTITY`: Ejemplo permiso escritura de una entidad
-- `READ_SOME_ENTITY`: Ejemplo permiso para lectura de una entidad
+- `WRITE_SOME_ENTITY`: Ejemplo de permiso de escritura
+- `READ_SOME_ENTITY`: Ejemplo de permiso de lectura
 
 ## 🔧 Configuración Avanzada
 
-### Variables de Entorno
-
-#### Backend (.env)
+### Variables de Entorno (`.env`)
 
 ```env
 # Database
@@ -501,25 +546,35 @@ POSTGRESDB_DATABASE=your_db_name
 POSTGRESDB_USER=postgres
 POSTGRESDB_PASSWORD=password
 
-# JWT
-JWT_SECRET=your_jwt_secret_key_here
-JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_here
-JWT_EXPIRES_IN=1h
-JWT_REFRESH_EXPIRES_IN=7d
+# JWT del cliente — dos secretos distintos
+JWT_ACCESS_SECRET=dev-access-secret-replace-me
+JWT_REFRESH_SECRET=dev-refresh-secret-replace-me
+JWT_EXPIRES_IN=4h
+JWT_REFRESH_EXPIRES_IN=8h
 
-# Server
-PORT=3200
-NODE_ENV=development
+# JWT interno Ed25519 (PEM con \n literales)
+INTERNAL_JWT_PRIVATE_KEY=
+INTERNAL_JWT_PUBLIC_KEY=
+
+# Gateway
+GATEWAY_PORT=3100
+API_BASE_URL=http://api:3200
 CORS_ORIGIN=http://localhost:4200
+
+# API
+NODE_PORT=3200
+NODE_ENV=development
+NODE_PRODUCTION=false
+HASH_SALT_ROUNDS=10
 ```
 
-#### Frontend (environment.ts)
+### Frontend (`environment.ts`)
 
 ```typescript
-export const environment = {
+export const env = {
   production: false,
-  api: 'http://localhost:3200/api/',
-  appName: 'Nx Fullstack Starter',
+  // Path relativa para que el proxy del dev server (Vite) la redirija al gateway
+  api: '/api/v1/',
 };
 ```
 
@@ -528,40 +583,48 @@ export const environment = {
 ### Producción con Docker
 
 ```bash
-# 1. Construir para producción
-npm run build
-
-# 2. Crear imágenes Docker
-docker-compose -f docker-compose.prod.yml build
-
-# 3. Desplegar
-docker-compose -f docker-compose.prod.yml up -d
+# 1. Generar claves Ed25519 y secretos (docs/SECURITY.md)
+# 2. Volcar al .env de producción
+# 3. Levantar el stack
+docker compose --env-file .env up -d --build
 ```
 
 ### Variables de Entorno de Producción
 
 ```env
 NODE_ENV=production
+NODE_PRODUCTION=true
 POSTGRESDB_HOST=postgresdb
 POSTGRESDB_DATABASE=production_db
-JWT_SECRET=production-secret-key
-CORS_ORIGIN=https://your-domain.com
+
+# Generados con: openssl rand -base64 64
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+
+# Generados con: openssl genpkey -algorithm ed25519 ...
+INTERNAL_JWT_PRIVATE_KEY=...   # sólo gateway
+INTERNAL_JWT_PUBLIC_KEY=...    # sólo api
+
+CORS_ORIGIN=https://tu-dominio.com
+SERVICE_FQDN_GATEWAY=tu-dominio.com
+SERVICE_FQDN_FRONT=app.tu-dominio.com
 ```
 
 ## 🤝 Contribución
 
 1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+2. Crea una rama para tu feature (`git checkout -b feat/AmazingFeature`)
 3. Commit tus cambios (`git commit -m 'feat: Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
+4. Push a la rama (`git push origin feat/AmazingFeature`)
 5. Abre un Pull Request
 
 ### Guía de Contribución
 
 - Sigue las convenciones de código existentes
-- Añade tests para nuevas funcionalidades
+- Añade tests para nuevas funcionalidades (cobertura mínima 60%)
 - Actualiza la documentación si es necesario
-- Usa commits descriptivos
+- Usa commits descriptivos siguiendo Conventional Commits
+- Si tocás auth/tokens, lee [`docs/SECURITY.md`](docs/SECURITY.md) antes
 
 ## 📄 Licencia
 
@@ -575,21 +638,20 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 - [Express.js Docs](https://expressjs.com/)
 - [Nx Docs](https://nx.dev/)
 - [Sequelize Docs](https://sequelize.org/)
+- [`jose` (JWT EdDSA)](https://github.com/panva/jose)
+- [`http-proxy-middleware`](https://github.com/chimurai/http-proxy-middleware)
 
 ### Comunidad
 
-- [GitHub Issues](https://github.com/tu-usuario/nx-fullstack-starter/issues)
-- [Discussions](https://github.com/tu-usuario/nx-fullstack-starter/discussions)
+- [GitHub Issues](https://github.com/dherrero/fullstack-starter/issues)
+- [Discussions](https://github.com/dherrero/fullstack-starter/discussions)
 
 ### Problemas Comunes
 
 #### Error de conexión a la base de datos
 
 ```bash
-# Verificar que Docker esté corriendo
-docker ps
-
-# Reiniciar la base de datos
+docker ps                # verificar que Docker está corriendo
 npm run dev:db:down
 npm run dev:db
 ```
@@ -597,46 +659,44 @@ npm run dev:db
 #### Error de puerto en uso
 
 ```bash
-# Matar proceso en puerto 3200
+# Gateway (3100)
+lsof -ti:3100 | xargs kill
+
+# API (3200)
 lsof -ti:3200 | xargs kill
 
-# Matar proceso en puerto 4200
+# Front (4200)
 lsof -ti:4200 | xargs kill
 ```
+
+#### Login devuelve 500 con `relation "refresh_token_family" does not exist`
+
+La migración `db/20.refresh_token_family.sql` no se aplicó. En desarrollo:
+
+```bash
+npm run dev:db:clean   # borra el volumen — recrea con migraciones
+npm run dev:db
+```
+
+En producción, aplicar el SQL manualmente sobre la DB.
 
 ## 🎯 Próximos Pasos
 
 ### Personalización del Starter
 
-1. **Cambiar el branding**
-   - Actualiza textos en `apps/front/src/assets/i18n/`
-   - Modifica colores en `apps/front/src/styles.scss`
-   - Cambia el favicon y logo
-
-2. **Añadir nuevas funcionalidades**
-   - Crea nuevos módulos siguiendo la estructura existente
-   - Añade nuevos endpoints en el backend
-   - Implementa nuevos componentes en el frontend
-
-3. **Configurar la base de datos**
-   - Añade nuevas tablas en `db/`
-   - Crea nuevos modelos en `apps/back/src/models/`
-   - Actualiza DTOs en `libs/rest-dto/`
-
-4. **Implementar tests**
-   - Añade tests unitarios para servicios
-   - Implementa tests e2e para flujos críticos
-   - Configura coverage reports
+1. **Renombrar el proyecto**: `bash scripts/rename.sh mi-saas`
+2. **Cambiar el branding**: textos en `apps/front/src/assets/i18n/`, colores en `styles.scss`, favicon, logo
+3. **Añadir nuevas entidades**: tabla SQL en `db/`, modelo Sequelize en `apps/api/src/models/`, servicio que extiende `AbstractCrudService`, controlador que extiende `AbstractCrudController`, ruta en `apps/api/src/routes/` protegida por `requireInternalAuth`, DTO en `libs/rest-dto`
+4. **Añadir nuevos micros**: copiar el patrón de `apps/api` y declarar la ruta en el proxy del `apps/gateway`
 
 ### Roadmap
 
-- [ ] Añadir más ejemplos de componentes
-- [ ] Implementar sistema de notificaciones
-- [ ] Añadir tests e2e completos
-- [ ] Crear documentación de API
-- [ ] Añadir CI/CD pipeline
-- [ ] Implementar logging avanzado
-- [ ] Añadir métricas y monitoreo
+- [ ] SSO/OIDC en el gateway para clientes enterprise (Okta, Azure AD, Auth0)
+- [ ] SAML para tenants legacy
+- [ ] SCIM 2.0 para aprovisionamiento masivo
+- [ ] Multi-tenancy en CRUDs
+- [ ] Tests e2e completos (Playwright)
+- [ ] Métricas y observabilidad (OpenTelemetry)
 
 ---
 
