@@ -141,6 +141,15 @@ export class AuthService {
     this.isInitialized.set(false);
   }
 
+  /**
+   * Template-friendly helper. Pair with the native control flow:
+   *   @if (auth.isLoggedIn()) { ... } @else { ... }
+   * Re-evaluates automatically because it reads the `token` signal.
+   */
+  isLoggedIn(): boolean {
+    return this.token() !== '';
+  }
+
   hasPermission(requiredPermission: Permission): boolean {
     const userPermissions = this.tokenDecoded.permissions || [];
     return userPermissions.includes(requiredPermission);

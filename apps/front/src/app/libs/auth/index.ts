@@ -9,14 +9,6 @@ export {
 } from './guards/auth-permission.guard';
 export { canActivateFn } from './guards/auth.guard';
 
-// Directives
-export {
-  HasAllPermissionsDirective,
-  HasAnyPermissionDirective,
-  HasPermissionDirective,
-  IfLoggedInDirective,
-} from './directives';
-
 // Interfaces
 export { AuthConfig, Login, UserTokenData } from './auth.interface';
 
