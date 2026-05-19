@@ -1,33 +1,27 @@
-import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LanguageSwitcherComponent } from '@front/app/components/language-switcher/language-switcher.component';
-import { IfLoggedInDirective } from '@front/app/libs/auth/directives';
 import { AuthService } from '@front/app/libs/auth/services/auth.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [
-    CommonModule,
-    TranslocoModule,
-    LanguageSwitcherComponent,
-    IfLoggedInDirective,
-  ],
+  imports: [TranslocoModule, LanguageSwitcherComponent],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class HomeComponent {
-  #router = inject(Router);
-  #authService = inject(AuthService);
+  readonly auth = inject(AuthService);
+  readonly #router = inject(Router);
 
   goToLogin() {
     this.#router.navigate(['login']);
   }
 
   logout() {
-    this.#authService.logout();
+    this.auth.logout();
     this.#router.navigate(['/']);
   }
 }

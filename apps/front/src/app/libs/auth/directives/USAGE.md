@@ -1,194 +1,120 @@
-# Directivas de Permisos Angular - Guía de Uso
+# Guía de migración — directivas → control flow nativo
 
-## Directivas Disponibles
+Esta guía explica cómo migrar consumidores que usaban las antiguas
+directivas estructurales `*appHasPermission`, `*appHasAnyPermission`,
+`*appHasAllPermissions` y `*appIfLoggedIn` al control flow nativo de
+Angular (`@if`).
 
-### 1. `*appHasPermission`
+## Tabla 1-a-1
 
-Muestra el elemento solo si el usuario tiene el permiso específico.
+| Antes (directiva estructural)                                                                    | Después (`@if` nativo)                                                                                     |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `<el *appHasPermission="Permission.ADMIN">…</el>`                                                | `@if (auth.hasPermission(Permission.ADMIN)) { <el>…</el> }`                                                |
+| `<el *appHasAnyPermission="[Permission.ADMIN, Permission.WRITE_SOME_ENTITY]">…</el>`             | `@if (auth.hasAnyPermission([Permission.ADMIN, Permission.WRITE_SOME_ENTITY])) { <el>…</el> }`             |
+| `<el *appHasAllPermissions="[Permission.READ_SOME_ENTITY, Permission.WRITE_SOME_ENTITY]">…</el>` | `@if (auth.hasAllPermissions([Permission.READ_SOME_ENTITY, Permission.WRITE_SOME_ENTITY])) { <el>…</el> }` |
+| `<el *appIfLoggedIn="true">…</el>`                                                               | `@if (auth.isLoggedIn()) { <el>…</el> }`                                                                   |
+| `<el *appIfLoggedIn="false">…</el>`                                                              | `@if (!auth.isLoggedIn()) { <el>…</el> }`                                                                  |
+| Combinado: positivo + negativo                                                                   | `@if (auth.isLoggedIn()) { … } @else { … }`                                                                |
 
-```html
-<!-- Mostrar solo si el usuario es ADMIN -->
-<button *appHasPermission="'ADMIN'" class="btn btn-danger">Eliminar Usuario</button>
+## Componente standalone
 
-<!-- Usando el enum Permission -->
-<div *appHasPermission="Permission.ADMIN" class="admin-panel">Panel de Administración</div>
-```
-
-### 2. `*appHasAnyPermission`
-
-Muestra el elemento si el usuario tiene cualquiera de los permisos especificados.
-
-```html
-<!-- Mostrar si el usuario tiene ADMIN o WRITE_SOME_ENTITY -->
-<button *appHasAnyPermission="['ADMIN', 'WRITE_SOME_ENTITY']" class="btn btn-primary">Editar</button>
-
-<!-- Con un solo permiso (equivalente a appHasPermission) -->
-<div *appHasAnyPermission="Permission.WRITE_SOME_ENTITY" class="editor-panel">Panel de Edición</div>
-```
-
-### 3. `*appHasAllPermissions`
-
-Muestra el elemento solo si el usuario tiene todos los permisos especificados.
-
-```html
-<!-- Mostrar solo si el usuario tiene READ_SOME_ENTITY Y WRITE_SOME_ENTITY -->
-<div *appHasAllPermissions="['READ_SOME_ENTITY', 'WRITE_SOME_ENTITY']" class="advanced-panel">Panel Avanzado</div>
-
-<!-- Con un solo permiso (equivalente a appHasPermission) -->
-<span *appHasAllPermissions="Permission.ADMIN" class="admin-badge"> Admin </span>
-```
-
-## Uso en Componentes
-
-### Importar las Directivas
-
-```typescript
-import { Component } from '@angular/core';
+```ts
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Permission } from '@dto';
-import { HasPermissionDirective, HasAnyPermissionDirective, HasAllPermissionsDirective } from '@front/app/libs/auth/directives';
+import { AuthService } from '@front/app/libs/auth/services/auth.service';
 
 @Component({
   selector: 'app-example',
   standalone: true,
-  imports: [HasPermissionDirective, HasAnyPermissionDirective, HasAllPermissionsDirective],
-  template: `
-    <div>
-      <!-- Contenido para administradores -->
-      <div *appHasPermission="Permission.ADMIN">
-        <h2>Panel de Administración</h2>
-        <button>Gestionar Usuarios</button>
-      </div>
-
-      <!-- Contenido para editores o administradores -->
-      <div *appHasAnyPermission="[Permission.ADMIN, Permission.WRITE_SOME_ENTITY]">
-        <h3>Herramientas de Edición</h3>
-        <button>Crear Nuevo</button>
-        <button>Editar Existente</button>
-      </div>
-
-      <!-- Contenido solo para usuarios con permisos completos -->
-      <div *appHasAllPermissions="[Permission.READ_SOME_ENTITY, Permission.WRITE_SOME_ENTITY]">
-        <h4>Funciones Avanzadas</h4>
-        <button>Exportar Datos</button>
-      </div>
-    </div>
-  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [],
+  templateUrl: './example.component.html',
 })
 export class ExampleComponent {
-  Permission = Permission; // Para usar en el template
+  readonly auth = inject(AuthService);
+  readonly Permission = Permission; // exponer para que el template lo lea
 }
 ```
 
-## Ejemplos Prácticos
+Ya no hace falta importar ninguna directiva — `@if` está en el lenguaje
+de plantillas — y `CommonModule` deja de ser necesario si era lo único
+que usabas para `*ngIf` / `*ngFor`.
 
-### Barra de Navegación Condicional
+## Ejemplos prácticos migrados
+
+### Navbar condicional
 
 ```html
 <nav class="navbar">
-  <div class="nav-item">
-    <a routerLink="/home">Inicio</a>
-  </div>
+  <a routerLink="/home">Inicio</a>
 
-  <!-- Solo para usuarios autenticados -->
-  <div class="nav-item" *appHasAnyPermission="['READ_SOME_ENTITY', 'WRITE_SOME_ENTITY', 'ADMIN']">
-    <a routerLink="/dashboard">Dashboard</a>
-  </div>
-
-  <!-- Solo para administradores -->
-  <div class="nav-item" *appHasPermission="'ADMIN'">
-    <a routerLink="/admin">Administración</a>
-  </div>
-
-  <!-- Solo para editores -->
-  <div class="nav-item" *appHasPermission="'WRITE_SOME_ENTITY'">
-    <a routerLink="/editor">Editor</a>
-  </div>
+  @if (auth.hasAnyPermission([Permission.READ_SOME_ENTITY, Permission.WRITE_SOME_ENTITY, Permission.ADMIN])) {
+  <a routerLink="/dashboard">Dashboard</a>
+  } @if (auth.hasPermission(Permission.ADMIN)) {
+  <a routerLink="/admin">Administración</a>
+  } @if (auth.hasPermission(Permission.WRITE_SOME_ENTITY)) {
+  <a routerLink="/editor">Editor</a>
+  }
 </nav>
 ```
 
-### Botones de Acción Condicionales
+### Botones de acción por permiso
 
 ```html
 <div class="card">
   <h3>Usuario: {{ user.name }}</h3>
 
-  <!-- Botón de editar para editores o admins -->
-  <button *appHasAnyPermission="['ADMIN', 'WRITE_SOME_ENTITY']" class="btn btn-primary" (click)="editUser(user)">Editar</button>
-
-  <!-- Botón de eliminar solo para admins -->
-  <button *appHasPermission="'ADMIN'" class="btn btn-danger" (click)="deleteUser(user)">Eliminar</button>
-
-  <!-- Botón de ver detalles para todos los usuarios autenticados -->
-  <button *appHasAnyPermission="['ADMIN', 'WRITE_SOME_ENTITY', 'READ_SOME_ENTITY']" class="btn btn-info" (click)="viewDetails(user)">Ver Detalles</button>
+  @if (auth.hasAnyPermission([Permission.ADMIN, Permission.WRITE_SOME_ENTITY])) {
+  <button class="btn btn-primary" (click)="editUser(user)">Editar</button>
+  } @if (auth.hasPermission(Permission.ADMIN)) {
+  <button class="btn btn-danger" (click)="deleteUser(user)">Eliminar</button>
+  }
 </div>
 ```
 
-### Formularios Condicionales
+### Cabecera con bloque logueado / no logueado
 
 ```html
-<form [formGroup]="userForm">
-  <div class="form-group">
-    <label>Email</label>
-    <input formControlName="email" class="form-control" />
-  </div>
-
-  <!-- Campo de permisos solo para administradores -->
-  <div class="form-group" *appHasPermission="'ADMIN'">
-    <label>Permisos</label>
-    <select formControlName="permissions" multiple class="form-control">
-      <option value="READ_SOME_ENTITY">Leer</option>
-      <option value="WRITE_SOME_ENTITY">Escribir</option>
-      <option value="ADMIN">Administrador</option>
-    </select>
-  </div>
-
-  <!-- Botón de guardar con diferentes permisos -->
-  <button *appHasAnyPermission="['ADMIN', 'WRITE_SOME_ENTITY']" type="submit" class="btn btn-success">Guardar</button>
-</form>
+@if (auth.isLoggedIn()) {
+<user-menu />
+} @else {
+<button (click)="login()">Iniciar sesión</button>
+}
 ```
 
-## Características Técnicas
+## Por qué se eliminaron las directivas
 
-### Reactividad
+El patrón `TemplateRef + ViewContainerRef + @Input()` sufría un bug
+recurrente: el azúcar sintáctico del selector estructural
 
-Las directivas son reactivas y se actualizan automáticamente cuando:
+```html
+<el *appHasPermission="X"></el>
+```
 
-- El usuario inicia sesión
-- El usuario cierra sesión
-- Los permisos del usuario cambian
+se desugarea internamente en
 
-### Performance
+```html
+<ng-template [appHasPermission]="X"></ng-template>
+```
 
-- Las directivas solo se evalúan cuando es necesario
-- No hay suscripciones innecesarias a observables
-- El DOM se actualiza eficientemente
+es decir, Angular busca un `@Input()` que **coincida exactamente** con
+el nombre del selector. Si el campo interno se llama `hasPermission`
+(sin prefijo `app`), el valor nunca llega y la directiva ve `undefined`,
+con lo que el bloque desaparece silenciosamente. El alias
+`@Input('appHasPermission')` es la mitigación correcta, pero el control
+flow nativo cierra la categoría entera.
 
-### Type Safety
+Además, `@if` es:
 
-- Soporte completo para TypeScript
-- IntelliSense en IDEs
-- Validación en tiempo de compilación
+- **Type-safe**: errores del expression en tiempo de build.
+- **Más eficiente**: cero overhead de directiva, sin clases nuevas.
+- **Más legible**: la condición vive junto al bloque, no en un atributo.
+- **Nativo**: no requiere `import`, no rompe si el componente olvidó
+  declarar la directiva en `imports: [...]`.
 
-## Notas Importantes
+## Reactividad
 
-1. **Autenticación Requerida**: Las directivas asumen que el usuario está autenticado. Para contenido que requiere autenticación, combina con `*ngIf="authService.isLoggedIn$ | async"`.
-
-2. **Permisos Vacíos**: Si se pasa un array vacío a `*appHasAnyPermission` o `*appHasAllPermissions`, el elemento no se mostrará.
-
-3. **Valores Null/Undefined**: Si se pasa `null` o `undefined`, el elemento no se mostrará.
-
-4. **Compatibilidad**: Las directivas son compatibles con Angular 17+ y componentes standalone.
-
-## Troubleshooting
-
-### El elemento no se muestra cuando debería
-
-1. Verifica que el usuario esté autenticado
-2. Confirma que el usuario tenga los permisos correctos
-3. Revisa la consola para errores de JavaScript
-
-### El elemento se muestra cuando no debería
-
-1. Verifica que los permisos se estén pasando correctamente
-2. Confirma que el servicio de autenticación esté funcionando
-3. Revisa la lógica de permisos en el backend
+`auth.isLoggedIn()`, `auth.hasPermission(...)`, etc. leen los signals
+internos del `AuthService` (`token`, `tokenDecoded`). Angular re-evalúa
+el `@if` automáticamente cuando el usuario inicia/cierra sesión o el
+gateway rota el access token, sin código adicional.
