@@ -15,7 +15,9 @@ services:
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD_HASH: ${BOOTSTRAP_ADMIN_PASSWORD_HASH:-}
     ports:
-      - "5432:5432"
+      # Bind to loopback only: the dev DB must not be reachable from other hosts
+      # on the network. Override POSTGRESDB_PORT if 5432 is taken locally.
+      - "127.0.0.1:${POSTGRESDB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d
