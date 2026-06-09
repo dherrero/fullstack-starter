@@ -15,9 +15,16 @@ export class AuthService {
   private isInitialized = signal<boolean>(false);
 
   get tokenDecoded(): UserTokenData {
-    return this.token
-      ? JSON.parse(window.atob(this.token().split('.')[1]))
-      : ({} as UserTokenData);
+    // NOTE: decoded claims are PRESENTATION-ONLY (UX). Authorization is enforced
+    // by the backend, never by trusting this client-side decode.
+    const token = this.token();
+    if (!token) return {} as UserTokenData;
+    try {
+      return JSON.parse(window.atob(token.split('.')[1] ?? ''));
+    } catch {
+      // Malformed/non-JWT token — fail safe to empty claims.
+      return {} as UserTokenData;
+    }
   }
 
   #apiBase = '/login';
