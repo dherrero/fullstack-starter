@@ -60,6 +60,7 @@ const issueRefreshAndRecord = async (
     email: options.user.email,
     permissions: options.user.permissions,
     remember: options.user.remember,
+    familyId: options.familyId,
     jti,
   });
   await ApiClient.recordRefresh(
@@ -121,7 +122,11 @@ export const revokeCurrentRefreshFamily = async (
   if (!refreshToken) return;
   try {
     const decoded = tokenService.verifyRefreshToken(refreshToken);
-    if (decoded.jti) {
+    // Revoke the whole family (all rotations of this session), not just the
+    // single presented jti, so logout actually ends the session everywhere.
+    if (decoded.familyId) {
+      await ApiClient.revokeRefresh({ familyId: decoded.familyId }, requestId);
+    } else if (decoded.jti) {
       await ApiClient.revokeRefresh({ jti: decoded.jti }, requestId);
     }
   } catch {

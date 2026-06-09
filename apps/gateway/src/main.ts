@@ -37,8 +37,17 @@ class Main {
     // only returns JSON, so a document CSP here would be noise.
     this.#app.use(helmet({ contentSecurityPolicy: false }));
 
+    // Fail closed: with credentials:true, never fall back to reflecting any
+    // origin (that would enable account takeover). An empty CORS_ORIGIN means
+    // "no cross-origin allowed", and we log it loudly as a misconfiguration.
+    const allowedOrigins = parseOrigins(process.env.CORS_ORIGIN);
+    if (allowedOrigins.length === 0) {
+      console.error(
+        '⚠️ CORS_ORIGIN is empty — all cross-origin requests will be rejected. Set it in your env.',
+      );
+    }
     const corsOptions: cors.CorsOptions = {
-      origin: parseOrigins(process.env.CORS_ORIGIN) ?? true,
+      origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
@@ -46,7 +55,17 @@ class Main {
     };
     this.#app.use(cors(corsOptions));
     this.#app.use(cookieParser());
-    this.#app.use(express.json());
+
+    // Parse JSON only where a body is actually consumed (the auth endpoints),
+    // with an explicit small size limit. Proxied API traffic is streamed, never
+    // buffered/parsed here.
+    const jsonParser = express.json({ limit: '100kb' });
+    this.#app.use((req, res, next) => {
+      if (req.path.startsWith('/api/v1/auth')) {
+        return jsonParser(req, res, next);
+      }
+      return next();
+    });
   }
 
   #setRoutes() {

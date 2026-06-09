@@ -83,13 +83,35 @@ describe('TokenService', () => {
     });
   });
 
+  describe('issuer / audience binding', () => {
+    it('rejects an access token with a wrong audience', async () => {
+      const jwt = await import('jsonwebtoken');
+      const forged = jwt.default.sign(
+        { id: 1, email: 'a@b.com', permissions: [], typ: 'access' },
+        process.env.JWT_ACCESS_SECRET as string,
+        {
+          algorithm: 'HS256',
+          expiresIn: '1h',
+          issuer: 'gateway',
+          audience: 'someone-else',
+        },
+      );
+      expect(() => tokenService.verifyAccessToken(forged)).toThrow();
+    });
+  });
+
   describe('typ enforcement', () => {
     it('refuses an access token shape signed with the access secret but typ=refresh', async () => {
       const jwt = await import('jsonwebtoken');
       const forged = jwt.default.sign(
         { id: 1, email: 'a@b.com', permissions: [], typ: 'refresh' },
         process.env.JWT_ACCESS_SECRET as string,
-        { algorithm: 'HS256', expiresIn: '1h' },
+        {
+          algorithm: 'HS256',
+          expiresIn: '1h',
+          issuer: 'gateway',
+          audience: 'web',
+        },
       );
       expect(() => tokenService.verifyAccessToken(forged)).toThrow(
         /Expected access token/,

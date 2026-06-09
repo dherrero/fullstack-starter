@@ -40,9 +40,14 @@ class AuthController {
         { issueRefreshCookie: true, requestId },
       );
       return HttpResponser.successEmpty(res);
-    } catch (err) {
-      const status = (err as { statusCode?: number })?.statusCode ?? 401;
-      return HttpResponser.errorJson(res, err as Error, status);
+    } catch {
+      // Always a generic 401 — never forward the upstream message, which could
+      // reveal whether an account exists (user enumeration).
+      return HttpResponser.errorJson(
+        res,
+        { message: 'Invalid email or password' },
+        401,
+      );
     }
   };
 
