@@ -8,7 +8,12 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRESDB_DATABASE:-your_db_name}
       POSTGRES_USER: ${POSTGRESDB_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRESDB_PASSWORD:-password}
+      # No insecure default: you MUST set POSTGRESDB_PASSWORD in your .env.
+      POSTGRES_PASSWORD: ${POSTGRESDB_PASSWORD:?POSTGRESDB_PASSWORD is required — set it in your .env (copy .env.example to .env)}
+      # Dev-only admin bootstrap (consumed by db/zz-dev-seed.sh). Off by default.
+      DEV_SEED_ADMIN: ${DEV_SEED_ADMIN:-false}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD_HASH: ${BOOTSTRAP_ADMIN_PASSWORD_HASH:-}
     ports:
       - "5432:5432"
     volumes:

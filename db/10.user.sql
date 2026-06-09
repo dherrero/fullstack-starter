@@ -35,9 +35,8 @@ ALTER SEQUENCE public.user_id_seq OWNED BY public.user.id;
 
 ALTER TABLE ONLY public.user ALTER COLUMN id SET DEFAULT nextval('public.user_id_seq'::regclass);
 
-
-INSERT INTO public.user (id, email, name, lastname, password, permissions) VALUES (1, 'test@local.com', 'Test', 'T', '$2b$10$MFlYds40Bv5jd3BAOvuuk.XrgzeniY84r572RGfbr5/d7O8f5bouy', ARRAY['ADMIN']::permission_type[]);
-
-
-
-SELECT pg_catalog.setval('public.user_id_seq', 2);
+-- NOTE: this schema file intentionally seeds NO users. A bootstrap admin is
+-- created only by the gated, dev-only script `db/zz-dev-seed.sh`, which runs
+-- after this file and does nothing unless DEV_SEED_ADMIN=true is set with an
+-- explicit BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD_HASH. Never ship a
+-- known credential as part of the schema.
