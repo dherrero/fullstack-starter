@@ -1,5 +1,6 @@
 import { userCrudController } from '@api/controllers';
-import { Permission } from '@dto';
+import { validate } from '@api/middleware';
+import { Permission, userCreateSchema, userUpdateSchema } from '@dto';
 import { requireInternalAuth, InternalScope } from '@internal-auth';
 import { Router } from 'express';
 
@@ -13,8 +14,18 @@ const requireAdmin = requireInternalAuth({
 userCrudRouter.get('/', requireAdmin, userCrudController.getAll);
 userCrudRouter.get('/paged', requireAdmin, userCrudController.getAllPaged);
 userCrudRouter.get('/:id', requireAdmin, userCrudController.getById);
-userCrudRouter.post('/', requireAdmin, userCrudController.post);
-userCrudRouter.put('/:id', requireAdmin, userCrudController.put);
+userCrudRouter.post(
+  '/',
+  requireAdmin,
+  validate(userCreateSchema),
+  userCrudController.post,
+);
+userCrudRouter.put(
+  '/:id',
+  requireAdmin,
+  validate(userUpdateSchema),
+  userCrudController.put,
+);
 userCrudRouter.delete('/:id', requireAdmin, userCrudController.delete);
 
 export default userCrudRouter;

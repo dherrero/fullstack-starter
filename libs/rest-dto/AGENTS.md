@@ -17,6 +17,12 @@ file wins and the duplicate is a bug.
 - `src/index.ts` — public barrel; everything consumers use is re-exported here.
 - `src/lib/rest-dto.ts` — entity DTOs (e.g. `UserDTO`), the `Permission` enum, and
   permission option metadata (`PERMISSION_OPTIONS`).
+- `src/lib/validation.ts` — **runtime validation contracts** (Zod schemas:
+  `userCreateSchema`, `userUpdateSchema`, `paginationQuerySchema`,
+  `idParamSchema`). These are the single source of truth for request validation;
+  the API's `validate()` middleware parses every request through them. Input
+  schemas are `.strict()` (reject unknown keys). Add a schema here when you add an
+  entity — never inline validation in the apps.
 - `src/lib/common-types.ts` — shared primitives/helpers.
 
 ## Conventions
