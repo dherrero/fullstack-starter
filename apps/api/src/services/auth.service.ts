@@ -10,14 +10,19 @@ class AuthService {
     email: string,
     password: string,
   ): Promise<UserModel> => {
-    const user: UserModel = await User.findOne({ where: { email } });
+    const user: UserModel = await User.findOne({
+      where: { email, deleted: false },
+    });
     if (!user) throw new Error('Email or password incorrect.');
     const validPassword = await this.#comparePassword(password, user.password);
     if (!validPassword) throw new Error('Email or password incorrect.');
     return user;
   };
 
-  getUser = async (id: number): Promise<UserModel> => await User.findByPk(id);
+  // findOne (not findByPk) so the soft-delete filter is actually enforced:
+  // a soft-deleted account must never be resolvable for auth purposes.
+  getUser = async (id: number): Promise<UserModel> =>
+    await User.findOne({ where: { id, deleted: false } });
 
   hashPassword = async (password: string) => {
     return await hash(password, process.env.HASH_SALT_ROUNDS ?? 10);

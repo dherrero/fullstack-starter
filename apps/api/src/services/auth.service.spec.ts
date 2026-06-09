@@ -35,7 +35,7 @@ describe('AuthService (internal)', () => {
       const result = await authService.validateCredentials('a@b.com', 'plain');
 
       expect(User.findOne).toHaveBeenCalledWith({
-        where: { email: 'a@b.com' },
+        where: { email: 'a@b.com', deleted: false },
       });
       expect(bcrypt.compare).toHaveBeenCalledWith('plain', 'hashed');
       expect(result).toEqual(mockUser);
@@ -57,6 +57,19 @@ describe('AuthService (internal)', () => {
       await expect(
         authService.validateCredentials('a@b.com', 'bad'),
       ).rejects.toThrow('Email or password incorrect.');
+    });
+  });
+
+  describe('getUser', () => {
+    it('only resolves non-deleted users (soft-delete filter)', async () => {
+      vi.mocked(User.findOne).mockResolvedValue(null);
+
+      const result = await authService.getUser(1);
+
+      expect(User.findOne).toHaveBeenCalledWith({
+        where: { id: 1, deleted: false },
+      });
+      expect(result).toBeNull();
     });
   });
 
