@@ -75,7 +75,6 @@ export abstract class AbstractCrudController {
       });
       return HttpResponser.successJson(res, updated);
     } catch (error) {
-      console.log(error);
       return HttpResponser.errorJson(res, error);
     }
   };

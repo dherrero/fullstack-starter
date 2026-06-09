@@ -19,7 +19,13 @@ const dbConfig = {
   database: process.env.POSTGRESDB_DATABASE ?? 'your_db_name',
   username: process.env.POSTGRESDB_USER ?? 'postgres',
   password: process.env.POSTGRESDB_PASSWORD ?? 'password',
-  logging: process.env.NODE_PRODUCTION === 'true' ? false : console.log,
+  // Fail-safe: never log SQL (which includes parameter values like emails) when
+  // either standard NODE_ENV or the legacy NODE_PRODUCTION flag indicates prod.
+  logging:
+    process.env.NODE_ENV === 'production' ||
+    process.env.NODE_PRODUCTION === 'true'
+      ? false
+      : console.log,
   pool: {
     max: parseInt(process.env.DB_POOL_MAX || '10'),
     min: parseInt(process.env.DB_POOL_MIN || '0'),
