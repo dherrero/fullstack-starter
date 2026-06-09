@@ -6,6 +6,7 @@ import { Router, RouterModule } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 
 import { Login } from '@front/app/libs/auth/auth.interface';
+import { sanitizeRedirect } from '@front/app/libs/auth/safe-redirect';
 import { AuthService } from '@front/app/libs/auth/services/auth.service';
 import { catchError, of, tap } from 'rxjs';
 
@@ -36,7 +37,8 @@ export default class LoginComponent implements OnInit {
   ngOnInit() {
     const navigation = this.router.currentNavigation();
     const state = navigation?.extras.state as { currentRoute: string };
-    this.redirectUrl = state?.currentRoute ?? '';
+    // Only honour safe same-origin paths — never an attacker-controlled URL.
+    this.redirectUrl = sanitizeRedirect(state?.currentRoute);
   }
 
   doLogin() {
