@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import userCrudService from './user-crud.service';
+import userCrudService, { USER_WRITABLE_FIELDS } from './user-crud.service';
 import { User } from '@api/models';
 import { Permission } from '@dto';
 import authService from './auth.service';
@@ -53,10 +53,13 @@ describe('UserCrudService', () => {
 
       // Assert
       expect(authService.hashPassword).toHaveBeenCalledWith('plainPassword123');
-      expect(User.create).toHaveBeenCalledWith({
-        ...userData,
-        password: hashedPassword,
-      });
+      expect(User.create).toHaveBeenCalledWith(
+        {
+          ...userData,
+          password: hashedPassword,
+        },
+        { fields: USER_WRITABLE_FIELDS },
+      );
       expect(result).toEqual(createdUser);
     });
 
@@ -76,7 +79,9 @@ describe('UserCrudService', () => {
 
       // Assert
       expect(authService.hashPassword).not.toHaveBeenCalled();
-      expect(User.create).toHaveBeenCalledWith(userData);
+      expect(User.create).toHaveBeenCalledWith(userData, {
+        fields: USER_WRITABLE_FIELDS,
+      });
       expect(result).toEqual(createdUser);
     });
   });
@@ -111,7 +116,7 @@ describe('UserCrudService', () => {
       expect(authService.hashPassword).toHaveBeenCalledWith('newPassword123');
       expect(User.update).toHaveBeenCalledWith(
         { ...updateData, password: hashedPassword },
-        { where: { id: userId } },
+        { where: { id: userId }, fields: USER_WRITABLE_FIELDS },
       );
       expect(result).toEqual([1]);
     });
@@ -156,7 +161,7 @@ describe('UserCrudService', () => {
           email: 'updated@example.com',
           permissions: [Permission.READ_SOME_ENTITY],
         },
-        { where: { id: userId } },
+        { where: { id: userId }, fields: USER_WRITABLE_FIELDS },
       );
     });
 
