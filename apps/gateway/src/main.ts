@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 
 import api from './routes';
 
@@ -30,6 +31,11 @@ class Main {
 
   #config() {
     this.#app.set('trust proxy', 1);
+
+    // Security headers (HSTS, X-Content-Type-Options, X-Frame-Options: DENY,
+    // etc.). The document-level CSP is owned by the front's nginx; the gateway
+    // only returns JSON, so a document CSP here would be noise.
+    this.#app.use(helmet({ contentSecurityPolicy: false }));
 
     const corsOptions: cors.CorsOptions = {
       origin: parseOrigins(process.env.CORS_ORIGIN) ?? true,
