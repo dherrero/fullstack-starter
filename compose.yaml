@@ -37,7 +37,7 @@ services:
       - POSTGRESDB_PORT=${POSTGRESDB_PORT:-5432}
       - POSTGRESDB_HOST=postgresdb
       - INTERNAL_JWT_PUBLIC_KEY=${INTERNAL_JWT_PUBLIC_KEY}
-      - HASH_SALT_ROUNDS=${HASH_SALT_ROUNDS:-10}
+      - HASH_SALT_ROUNDS=${HASH_SALT_ROUNDS:-12}
       - NODE_UPLOAD_FILES=${NODE_UPLOAD_FILES:-uploads}
     networks:
       - internal-network
