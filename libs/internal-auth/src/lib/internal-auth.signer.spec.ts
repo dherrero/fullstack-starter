@@ -105,6 +105,20 @@ describe('signUserContext / verifyInternalAuth', () => {
     });
     expect(claims.sub).toBe(5);
   });
+
+  it('normalises PEM keys with double-escaped \\\\n', async () => {
+    const escapedPrivate = privateKey.replace(/\n/g, '\\\\n');
+    const escapedPublic = publicKey.replace(/\n/g, '\\\\n');
+
+    const token = await signUserContext(
+      { userId: 7, permissions: [] },
+      { privateKey: escapedPrivate },
+    );
+    const claims = await verifyInternalAuth(token, {
+      publicKey: escapedPublic,
+    });
+    expect(claims.sub).toBe(7);
+  });
 });
 
 describe('signSystemContext', () => {

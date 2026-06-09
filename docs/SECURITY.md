@@ -66,25 +66,54 @@ JWT_REFRESH_SECRET=$(openssl rand -base64 64 | tr -d '\n')
 
 ### 2. Generar el par Ed25519 para `INTERNAL_JWT_*`
 
+**Recomendado** — usá el script, que emite las dos líneas listas para pegar
+en `.env` con el formato correcto (una línea, entre comillas, con `\n`):
+
+```bash
+bash scripts/gen-internal-keys.sh
+```
+
+Salida (copiar tal cual en el `.env`):
+
+```env
+INTERNAL_JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+INTERNAL_JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+```
+
+El script detecta un openssl con soporte Ed25519 (en macOS el LibreSSL del
+sistema **no** lo soporta) y, si no lo encuentra, genera con Node. No escribe
+ningún archivo a disco.
+
+> **Formato — el origen de los fallos de arranque más comunes.** La clave
+> **debe** ir en una sola línea entre comillas dobles con `\n` literales:
+> - PEM multilínea **sin comillas** → dotenv lo trunca en el primer salto y
+>   jose falla con `Invalid keyData / Failed to read private key`.
+> - `\n` escapado de más (`\\n`) → `jose` lanza `InvalidCharacterError` en
+>   `atob`. El normalizador (`normalisePem`) sólo consume un backslash.
+>
+> El script ya produce el formato seguro; evitá el escapado manual.
+
+<details>
+<summary>Alternativa manual (sin el script)</summary>
+
 ```bash
 openssl genpkey -algorithm ed25519 -out internal_private.pem
 openssl pkey -in internal_private.pem -pubout -out internal_public.pem
+
+# Convertir cada PEM a una sola línea con `\n` literales y entre comillas:
+echo "INTERNAL_JWT_PRIVATE_KEY=\"$(awk 'NF {printf "%s\\n", $0}' internal_private.pem | sed 's/\\n$//')\""
+echo "INTERNAL_JWT_PUBLIC_KEY=\"$(awk 'NF {printf "%s\\n", $0}' internal_public.pem | sed 's/\\n$//')\""
 ```
 
-Convertir cada PEM a una sola línea con `\n` literales para `.env`:
-
-```bash
-INTERNAL_JWT_PRIVATE_KEY=$(awk 'NF {printf "%s\\n", $0}' internal_private.pem)
-INTERNAL_JWT_PUBLIC_KEY=$(awk 'NF {printf "%s\\n", $0}' internal_public.pem)
-```
+</details>
 
 ### 3. Volcar al `.env`
 
 ```env
 JWT_ACCESS_SECRET=...
 JWT_REFRESH_SECRET=...
-INTERNAL_JWT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
-INTERNAL_JWT_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n
+INTERNAL_JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+INTERNAL_JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
 ```
 
 Compose inyecta `INTERNAL_JWT_PRIVATE_KEY` sólo al servicio `gateway` y

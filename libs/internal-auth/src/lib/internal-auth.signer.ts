@@ -31,9 +31,11 @@ const ALG = 'EdDSA';
 /**
  * Normalise PEM-encoded keys that arrive through env vars: docker/.env
  * style files commonly carry `\n` as a literal escape sequence; convert
- * those to real newlines so jose accepts the key.
+ * those to real newlines so jose accepts the key. `\\+n` (not just `\\n`)
+ * also collapses double-escaped `\\n` — a common .env tooling mistake that
+ * otherwise leaves a stray backslash and breaks jose's base64 decode.
  */
-const normalisePem = (pem: string): string => pem.replace(/\\n/g, '\n');
+const normalisePem = (pem: string): string => pem.replace(/\\+n/g, '\n');
 
 /**
  * Issue an internal JWT representing a fully-authenticated end-user
