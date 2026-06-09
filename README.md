@@ -207,19 +207,18 @@ Este proyecto está configurado para trabajar de forma óptima con **Claude Code
 │   ├── frontend-developer.md    # Frontend (Angular, componentes, formularios)
 │   └── qa-engineer.md           # Control de calidad (tests, linting, cobertura)
 ├── skills/                      # Skills invocables
-│   ├── angular-developer.md     # Directrices oficiales de Angular (fuente Google)
-│   └── start-agile.md           # Integración con kanban Leantime
+│   └── angular-developer.md     # Directrices oficiales de Angular (fuente Google)
 └── settings.local.json          # Permisos y lista de operaciones permitidas/denegadas
 ```
 
-El fichero `CLAUDE.md` de la raíz actúa como **orquestador principal**: recibe la petición, la descompone por capas y delega en cada subagente respetando el orden de dependencias.
+El fichero `AGENTS.md` de la raíz actúa como **orquestador principal**: recibe la petición, la descompone por capas y delega en cada subagente respetando el orden de dependencias. Cada paquete (`apps/*`, `libs/*`, `db`) tiene su propio `AGENTS.md` con las reglas específicas de esa capa; `CLAUDE.md` solo apunta a `AGENTS.md`.
 
 ### Flujo de orquestación
 
 ```
 Petición del usuario
          ↓
-  [CLAUDE.md] Orquestador
+  [AGENTS.md] Orquestador
          ↓
   ┌──────┬──────────┬──────────┐
   ↓      ↓          ↓          ↓
@@ -282,7 +281,8 @@ Se ejecuta **siempre el último**, una vez que todos los agentes de implementaci
 | Skill               | Invocación           | Descripción                                                                                                              |
 | ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `angular-developer` | `/angular-developer` | Carga las directrices oficiales de Angular antes de escribir código. Se invoca automáticamente en el agente de frontend. |
-| `start-agile`       | `/start-agile`       | Activa el modo ágil: crea tickets en Leantime por cada capa y actualiza su estado conforme avanza la implementación.     |
+
+> **Gestión de tareas**: este starter no impone ningún gestor. Usa el que ya emplee tu equipo (Jira, Linear, GitHub Issues, etc.) o ninguno; la orquestación no lo requiere.
 
 ### Cómo usarlo
 
@@ -291,12 +291,6 @@ Abre Claude Code en la raíz del proyecto y describe en lenguaje natural la func
 ```
 "Añade un módulo de gestión de productos con CRUD completo:
  tabla products con name, description, price y stock"
-```
-
-Para activar el modo ágil con seguimiento en Leantime:
-
-```
-/start-agile Añade un módulo de gestión de productos con CRUD completo
 ```
 
 ## 🎯 Tips de Trabajo

@@ -206,19 +206,18 @@ This project is configured to work optimally with **Claude Code**, Anthropic's c
 │   ├── frontend-developer.md    # Frontend (Angular, components, forms)
 │   └── qa-engineer.md           # Quality assurance (tests, linting, coverage)
 ├── skills/                      # Invokable skills
-│   ├── angular-developer.md     # Official Angular guidelines (Google source)
-│   └── start-agile.md           # Leantime kanban integration
+│   └── angular-developer.md     # Official Angular guidelines (Google source)
 └── settings.local.json          # Permissions and allowed/denied operations
 ```
 
-The root `CLAUDE.md` file acts as the **main orchestrator**: it receives the request, breaks it down by layer, and delegates to each subagent in dependency order.
+The root `AGENTS.md` file acts as the **main orchestrator**: it receives the request, breaks it down by layer, and delegates to each subagent in dependency order. Each package (`apps/*`, `libs/*`, `db`) has its own `AGENTS.md` with rules specific to that layer; `CLAUDE.md` only points to `AGENTS.md`.
 
 ### Orchestration flow
 
 ```
 User request
       ↓
-[CLAUDE.md] Orchestrator
+[AGENTS.md] Orchestrator
       ↓
 ┌─────┬──────────┬──────────┐
 ↓     ↓          ↓          ↓
@@ -281,7 +280,8 @@ Always runs **last**, after all implementation agents have finished.
 | Skill               | Invocation           | Description                                                                                                     |
 | ------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent.         |
-| `start-agile`       | `/start-agile`       | Activates agile mode: creates Leantime tickets per layer and updates their status as implementation progresses. |
+
+> **Task tracking**: this starter is not tied to any task manager. Use whatever your team already uses (Jira, Linear, GitHub Issues, etc.) or none; the orchestration does not require one.
 
 ### How to use it
 
@@ -290,12 +290,6 @@ Open Claude Code at the project root and describe in plain language the feature 
 ```
 "Add a product management module with full CRUD:
  products table with name, description, price and stock"
-```
-
-To activate agile mode with Leantime tracking:
-
-```
-/start-agile Add a product management module with full CRUD
 ```
 
 ## 🎯 Development Tips
