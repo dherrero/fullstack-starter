@@ -17,18 +17,19 @@ Production-ready Nx monorepo including JWT authentication with refresh rotation,
 ### 🎯 **Tech Stack**
 
 - **Frontend**: Angular 21 with standalone components, Signals API and native control flow (`@if` / `@for` / `@switch`)
-- **Gateway**: Express 5 + `http-proxy-middleware` — the only service exposed to the Internet, handles tokens and CORS
-- **API**: Express 5 + Sequelize, lives in a private network, exposes CRUDs and `/internal/*` endpoints used by the gateway
+- **Nginx (front)**: serves the SPA and is the public door; reverse-proxies `/api/*` to the gateway (same origin)
+- **Gateway**: Express 5 + `http-proxy-middleware` — private (`internal-network`), behind nginx; handles tokens and CORS
+- **API**: Express 5 + Sequelize, private (`internal-network`), exposes CRUDs and `/internal/*` endpoints used by the gateway
 - **Database**: PostgreSQL 16
 - **Monorepo**: Nx 22 for efficient management
 - **Build System**: esbuild (backend) + Vite (frontend)
-- **Containerisation**: Docker + Docker Compose with split `edge-network` and `internal-network`
+- **Containerisation**: Docker + Docker Compose; only `front` (nginx) is exposed, everything else lives on `internal-network` (`internal: true`)
 - **UI**: Bootstrap 5 + NgBootstrap
 - **i18n**: Transloco (Spanish / Valencian / English)
 
 ### 🔐 **Authentication & Security** — see [`SECURITY.md`](SECURITY.md)
 
-- Microservices architecture: public **gateway** + private **api**. The api never talks directly to clients; the gateway signs a short-lived EdDSA internal JWT before proxying.
+- Microservices architecture: **nginx** (front) as the public door → **gateway** (auth) → private **api**. The api never talks directly to clients; the gateway signs a short-lived EdDSA internal JWT before proxying.
 - Client JWTs with **two separate secrets** (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`), plus `typ` and `jti` claims.
 - **Refresh rotation with reuse detection**: the `refresh_token_family` table revokes the whole family when an already-rotated cookie is replayed.
 - **Internal Ed25519 JWT** between gateway and api: the gateway holds the private key (signs), the api only the public key (verifies). Privilege separation: a compromised api cannot mint tokens.
@@ -47,14 +48,30 @@ Production-ready Nx monorepo including JWT authentication with refresh rotation,
 
 ### 🏗️ **Architecture**
 
-```
-┌──────────┐   cookie+Authorization    ┌──────────┐   X-Internal-Auth (EdDSA)   ┌─────┐
-│  Client  │ ─────────────────────────▶│ Gateway  │ ──────────────────────────▶ │ API │
-└──────────┘                            └──────────┘                              └─────┘
-                                          (public)                               (private)
-                                            :3100                                  :3200
+```mermaid
+flowchart LR
+    Browser(["🌐 Browser"])
+
+    subgraph priv ["🔒 internal-network · internal: true (no Internet access)"]
+        direction LR
+        Nginx["Nginx · <b>front</b><br/>Angular SPA + proxy /api/*"]
+        Gateway["<b>Gateway</b> · :3100<br/>client JWT auth<br/>signs internal EdDSA JWT"]
+        API["<b>API</b> · :3200<br/>Express 5 + Sequelize"]
+        DB[("PostgreSQL 16")]
+
+        Nginx -->|"proxy_pass /api/"| Gateway
+        Gateway -->|"X-Internal-Auth · EdDSA"| API
+        API --> DB
+    end
+
+    Browser ==>|"HTTPS · cookie + Authorization<br/>the only public door"| Nginx
+
+    classDef public fill:#1f6feb,stroke:#0b3d91,color:#fff;
+    class Nginx public;
 ```
 
+- **Nginx (the `front` container)** is the **only public door**: it serves the SPA and reverse-proxies `/api/*` to the gateway (same origin → cookies travel without CORS). The browser never talks to the gateway directly.
+- **Gateway**, **API** and **PostgreSQL** all live on `internal-network` (`internal: true`), with no inbound from the Internet. The gateway authenticates the client JWT, signs the internal EdDSA JWT and proxies to the private api.
 - Controller-Service-Repository pattern inside the api
 - Shared DTOs between frontend and backend in `libs/rest-dto`
 - Internal gateway↔api contract in `libs/internal-auth` (Ed25519 + scopes)
@@ -94,7 +111,7 @@ npm run dev
 ### Application Access
 
 - **Frontend**: http://localhost:4200
-- **Gateway (public)**: http://localhost:3100/api/v1/
+- **Gateway (client API)**: http://localhost:3100/api/v1/ (in dev the front consumes it via the Vite proxy; under docker, behind nginx)
 - **API (private)**: http://localhost:3200 (only reachable via the gateway under docker)
 - **Database**: localhost:5432
 
@@ -169,7 +186,7 @@ nx-fullstack-starter/
 │   │   │   ├── libs/auth/        # Authentication module (service, guards)
 │   │   │   └── services/         # Business services
 │   │   └── src/assets/i18n/      # Translation files
-│   ├── gateway/                  # Public service (Express + http-proxy-middleware)
+│   ├── gateway/                  # Auth + proxy service, private behind nginx (Express + http-proxy-middleware)
 │   │   └── src/
 │   │       ├── controllers/      # auth.controller (login/logout)
 │   │       ├── middleware/       # hasPermission, refresh rotation
@@ -244,7 +261,7 @@ Expert in PostgreSQL and MongoDB schema design, zero-downtime migrations, indexi
 
 #### 🔧 Backend Developer
 
-Expert in Express + Sequelize following a 4-layer architecture: Routes → Controllers → Services → Models. Works across `apps/api` (business logic) and `apps/gateway` (public auth, proxy).
+Expert in Express + Sequelize following a 4-layer architecture: Routes → Controllers → Services → Models. Works across `apps/api` (business logic) and `apps/gateway` (client auth, proxy).
 
 - `AbstractCrudService` / `AbstractCrudController` patterns to minimise boilerplate
 - All HTTP responses through `HttpResponser` (never bare `res.json()`)
@@ -418,7 +435,7 @@ npm run build
 docker compose --env-file .env up -d
 ```
 
-> Only `gateway` and `front` expose ports to the host. `api` and `postgresdb` live on `internal-network` with `internal: true`.
+> Only `front` (nginx) is exposed. `gateway`, `api` and `postgresdb` live on `internal-network` with `internal: true` and are not reachable from the Internet.
 
 ### 🌍 **Internationalisation**
 

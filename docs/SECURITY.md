@@ -5,14 +5,34 @@ pasos manuales obligatorios antes de desplegar.
 
 ## Modelo de confianza
 
-```
-┌──────────┐    cookie+Authorization     ┌──────────┐    X-Internal-Auth (EdDSA)   ┌─────┐
-│  Cliente │ ───────────────────────────▶│ Gateway  │ ───────────────────────────▶ │ API │
-└──────────┘                              └──────────┘                              └─────┘
-                                             (privada)                              (pública)
+```mermaid
+flowchart LR
+    Client(["🌐 Cliente"])
+
+    subgraph priv ["🔒 internal-network · internal: true"]
+        direction LR
+        Nginx["Nginx · <b>front</b><br/>SPA + proxy /api/*"]
+        Gateway["<b>Gateway</b><br/>JWT_ACCESS_SECRET / JWT_REFRESH_SECRET (HS256)<br/>INTERNAL_JWT_PRIVATE_KEY (Ed25519, firma)"]
+        API["<b>API</b><br/>INTERNAL_JWT_PUBLIC_KEY (Ed25519, sólo verifica)"]
+        DB[("PostgreSQL")]
+
+        Nginx -->|"proxy_pass /api/"| Gateway
+        Gateway -->|"X-Internal-Auth · EdDSA"| API
+        API --> DB
+    end
+
+    Client ==>|"cookie + Authorization<br/>única puerta pública"| Nginx
+
+    classDef public fill:#1f6feb,stroke:#0b3d91,color:#fff;
+    class Nginx public;
 ```
 
-- **Gateway** es el único servicio expuesto a Internet. Posee:
+- **Nginx** (contenedor `front`) es la puerta pública: sirve la SPA y hace
+  reverse-proxy de `/api/*` al gateway (mismo origen, para que las cookies
+  viajen sin CORS). El cliente nunca contacta al gateway directamente.
+- **Gateway** vive en `internal-network` (privado, sin entrada desde Internet) —
+  es el servicio que firma los tokens de cara al cliente y proxia hacia el api
+  privado. Posee:
   - `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` (HS256) para los tokens
     del cliente.
   - `INTERNAL_JWT_PRIVATE_KEY` (Ed25519) para firmar las llamadas que
