@@ -20,6 +20,10 @@ export default class HomeComponent {
     this.#router.navigate(['login']);
   }
 
+  goToProfile() {
+    this.#router.navigate(['profile']);
+  }
+
   logout() {
     this.auth.logout();
     this.#router.navigate(['/']);

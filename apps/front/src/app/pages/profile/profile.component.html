@@ -1,0 +1,29 @@
+<div
+  class="container-fluid vh-100 d-flex align-items-center justify-content-center"
+>
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card border-0 shadow-lg">
+      <div class="card-body p-5">
+        <h1 class="h3 fw-bold mb-4">{{ 'profile.title' | transloco }}</h1>
+
+        <dl class="row mb-4">
+          <dt class="col-sm-4">{{ 'profile.email' | transloco }}</dt>
+          <dd class="col-sm-8">{{ auth.tokenDecoded.email }}</dd>
+
+          <dt class="col-sm-4">{{ 'profile.permissions' | transloco }}</dt>
+          <dd class="col-sm-8">
+            @for (perm of permissions; track perm) {
+              <span class="badge text-bg-secondary me-1">{{ perm }}</span>
+            } @empty {
+              <span class="text-muted">—</span>
+            }
+          </dd>
+        </dl>
+
+        <a class="btn btn-outline-secondary" routerLink="/">
+          {{ 'common.back' | transloco }}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
