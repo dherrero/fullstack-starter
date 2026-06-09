@@ -86,6 +86,29 @@ describe('AuthInterceptor', () => {
       req.flush({});
     });
 
+    it('should NOT attach token/withCredentials to a cross-origin URL', () => {
+      mockAuthService.token.set('Bearer secret-token');
+
+      httpClient.get('https://evil.example.com/collect').subscribe();
+
+      const req = httpMock.expectOne('https://evil.example.com/collect');
+      expect(req.request.headers.has('Authorization')).toBe(false);
+      expect(req.request.withCredentials).toBe(false);
+
+      req.flush({});
+    });
+
+    it('should not capture a token from a cross-origin response', () => {
+      mockAuthService.token.set('Bearer secret-token');
+
+      httpClient.get('https://evil.example.com/x').subscribe();
+
+      const req = httpMock.expectOne('https://evil.example.com/x');
+      req.flush({}, { headers: { Authorization: 'Bearer attacker-token' } });
+
+      expect(mockAuthService.setToken).not.toHaveBeenCalled();
+    });
+
     it('should preserve existing headers', () => {
       mockAuthService.token.set('Bearer test-token');
 
