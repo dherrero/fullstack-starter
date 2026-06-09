@@ -35,8 +35,12 @@ export const buildProxyRouter = (): Router => {
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
-      const requestId =
-        (req.header(INTERNAL_REQUEST_ID_HEADER) as string) ?? randomUUID();
+      // Never trust client-supplied internal headers: strip them so a forged
+      // x-internal-auth / x-request-id can never reach the api or poison logs.
+      delete req.headers[INTERNAL_AUTH_HEADER];
+      delete req.headers[INTERNAL_REQUEST_ID_HEADER];
+      // The correlation id is always minted server-side.
+      const requestId = randomUUID();
       try {
         const internalToken = await signUserContext(
           {
@@ -66,6 +70,10 @@ export const buildProxyRouter = (): Router => {
             internalToken?: string;
             internalRequestId?: string;
           };
+          // Defense in depth: drop any inbound internal headers that survived,
+          // then set only the gateway-minted values.
+          proxyReq.removeHeader(INTERNAL_AUTH_HEADER);
+          proxyReq.removeHeader(INTERNAL_REQUEST_ID_HEADER);
           if (carrier.internalToken) {
             proxyReq.setHeader(INTERNAL_AUTH_HEADER, carrier.internalToken);
           }
