@@ -64,10 +64,7 @@ services:
       - INTERNAL_JWT_PRIVATE_KEY=${INTERNAL_JWT_PRIVATE_KEY}
       - CORS_ORIGIN=${CORS_ORIGIN}
       - SERVICE_FQDN_GATEWAY=${SERVICE_FQDN_GATEWAY}
-    ports:
-      - '${GATEWAY_PORT:-3100}'
     networks:
-      - edge-network
       - internal-network
 
   front:
@@ -84,6 +81,7 @@ services:
       - '${FRONT_PORT:-80}'
     networks:
       - edge-network
+      - internal-network
 
 volumes:
   starter-postgresdb:

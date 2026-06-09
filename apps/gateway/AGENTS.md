@@ -3,8 +3,10 @@
 > Layer-specific rules for the gateway. See the root `AGENTS.md` for global
 > conventions and path aliases.
 
-The gateway is the **only service exposed to the public**. It owns the public-facing
-auth surface, then proxies authorized requests to the internal API.
+The gateway owns the **client-facing auth surface**, but it is **not exposed to the
+Internet**: it lives on `internal-network` (`internal: true`) and sits behind Nginx (the
+`front` container reverse-proxies `/api/*` to it). It then proxies authorized requests to
+the internal API on the same private network.
 
 ## Responsibilities
 
@@ -21,11 +23,11 @@ auth surface, then proxies authorized requests to the internal API.
 ## Request flow (must stay intact)
 
 ```
-client ──access token──▶ gateway
-                          │  hasPermission() → res.locals.user
-                          │  signUserContext() → internal EdDSA JWT
-                          ▼
-                         API  /v1/*  (verifies internal token, not the public one)
+browser ──/api/*──▶ nginx ──proxy_pass──▶ gateway
+                                          │  hasPermission() → res.locals.user
+                                          │  signUserContext() → internal EdDSA JWT
+                                          ▼
+                                         API  /v1/*  (verifies internal token, not the public one)
 ```
 
 ## Hard rules
