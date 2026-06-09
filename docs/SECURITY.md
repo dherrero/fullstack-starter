@@ -49,10 +49,17 @@ para otros microservicios futuros — sólo el gateway puede hacerlo.
 
 Cada login emite dos JWT distintos:
 
-| Token   | Secreto              | TTL                                             | Reside en              |
-| ------- | -------------------- | ----------------------------------------------- | ---------------------- |
-| Access  | `JWT_ACCESS_SECRET`  | `JWT_EXPIRES_IN` (4h)                           | Header `Authorization` |
-| Refresh | `JWT_REFRESH_SECRET` | `JWT_REFRESH_EXPIRES_IN` (8h, 365d si remember) | Cookie HttpOnly Secure |
+| Token   | Secreto              | TTL                                                                                     | Reside en              |
+| ------- | -------------------- | --------------------------------------------------------------------------------------- | ---------------------- |
+| Access  | `JWT_ACCESS_SECRET`  | `JWT_EXPIRES_IN` (4h)                                                                   | Header `Authorization` |
+| Refresh | `JWT_REFRESH_SECRET` | `JWT_REFRESH_EXPIRES_IN` (8h; `JWT_REFRESH_REMEMBER_DAYS`, 30 por defecto, si remember) | Cookie HttpOnly Secure |
+
+Los tokens del cliente además llevan `iss`/`aud` (`gateway`/`web`) que el
+gateway verifica, de modo que un token emitido para otro contexto no se puede
+reutilizar aquí. En cada **rotación** el gateway re-lee los permisos del usuario
+desde el API (fuente autoritativa) en lugar de copiarlos del refresh viejo, así
+que una cuenta degradada/revocada o borrada pierde acceso en la siguiente
+rotación, no al cabo de toda la vida del refresh.
 
 Cada token lleva:
 
@@ -71,8 +78,34 @@ La tabla `public.refresh_token_family` registra cada refresh JWT emitido:
 - Si el mismo `jti` se presenta **dos veces** (alguien interceptó la
   cookie y la usó después de la rotación), el API revoca la **familia
   completa** y devuelve 401. El gateway limpia la cookie del cliente.
-- En `logout`, el gateway revoca la familia activa para invalidar todo
-  el linaje.
+- En `logout`, el gateway revoca la **familia completa** (no sólo el `jti`
+  presentado): el `familyId` viaja dentro del refresh JWT, de modo que cerrar
+  sesión termina el linaje entero.
+
+## Token interno: suposición de red y replay
+
+El token interno (`X-Internal-Auth`, EdDSA) que el gateway firma para llamar al
+API es **de un solo request y de vida muy corta** (TTL 60s, ver
+`internal-auth.constants.ts`). Lleva un `requestId` de correlación, pero el
+verificador **no** impone unicidad (no hay store de `jti`/nonce). En
+consecuencia:
+
+> **Suposición de seguridad explícita.** Dentro de su ventana de TTL (60s, más
+> una tolerancia de reloj de 5s), un `X-Internal-Auth` capturado podría
+> **reusarse** contra el API. Esto está mitigado por el diseño de red: el token
+> **nunca sale de `internal-network`** (red `internal: true`, sin entrada desde
+> Internet) y el gateway es la única puerta pública. Explotarlo requiere estar
+> ya **dentro** de la red interna, o un SSRF/leak separado.
+
+El `requestId` lo **genera siempre el gateway en servidor** (`randomUUID()`); el
+API deriva el `requestId` del token verificado, nunca de una cabecera entrante
+del cliente. El gateway, además, hace _strip_ de cualquier `x-internal-auth` /
+`x-request-id` entrante antes de proxiar.
+
+**Si el borde interno llegara a ser cruzado por servicios menos confiables**
+(p. ej. una malla de servicios multirust), endurecer añadiendo una caché de
+`jti` de corta vida en `verifyInternalAuth` para rechazar replays: incluir un
+`jti` único en el token interno y registrar los vistos durante su TTL.
 
 ## Pasos manuales antes de levantar
 
@@ -106,6 +139,7 @@ ningún archivo a disco.
 
 > **Formato — el origen de los fallos de arranque más comunes.** La clave
 > **debe** ir en una sola línea entre comillas dobles con `\n` literales:
+>
 > - PEM multilínea **sin comillas** → dotenv lo trunca en el primer salto y
 >   jose falla con `Invalid keyData / Failed to read private key`.
 > - `\n` escapado de más (`\\n`) → `jose` lanza `InvalidCharacterError` en
