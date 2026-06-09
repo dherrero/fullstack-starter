@@ -17,6 +17,10 @@ interface RotateRefreshResponse {
   userId: number;
   familyId: string;
   parentJti: string;
+  // Authoritative, freshly-read claims so rotation cannot carry stale
+  // permissions forward (T-5).
+  email: string;
+  permissions: Permission[];
 }
 
 const baseUrl = () =>

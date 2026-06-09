@@ -1,6 +1,7 @@
 import HttpResponser from '@gateway/adapters/http/http.responser';
 import { ApiClient } from '@gateway/clients/api.client';
 import { tokenService } from '@gateway/services';
+import { rememberRefreshMaxAgeMs } from '@gateway/services/token.service';
 import { Permission } from '@dto';
 import { randomUUID } from 'crypto';
 import type { CookieOptions, NextFunction, Request, Response } from 'express';
@@ -71,7 +72,7 @@ const issueRefreshAndRecord = async (
     options.requestId,
   );
   const maxAge = options.user.remember
-    ? 365 * 24 * 60 * 60 * 1000
+    ? rememberRefreshMaxAgeMs()
     : 8 * 60 * 60 * 1000;
   res.cookie(REFRESH_COOKIE, refreshToken, buildCookieOptions(maxAge));
 };
@@ -205,10 +206,12 @@ const refreshAndContinue = async (
   const requestId = randomUUID();
   try {
     const rotation = await ApiClient.rotateRefresh(decoded.jti, requestId);
+    // Use the permissions/email the api just re-read from the user record, NOT
+    // the (possibly stale) claims embedded in the old refresh token (T-5).
     const user: UserContext = {
-      id: decoded.id,
-      email: decoded.email,
-      permissions: decoded.permissions ?? [],
+      id: rotation.userId,
+      email: rotation.email ?? decoded.email,
+      permissions: rotation.permissions ?? [],
     };
 
     if (

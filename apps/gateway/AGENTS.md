@@ -43,15 +43,24 @@ browser ──/api/*──▶ nginx ──proxy_pass──▶ gateway
 - CORS, `cookie-parser`, and `trust proxy` are configured in `src/main.ts`; allowed
   origins come from `CORS_ORIGIN` (comma-separated).
 - Responses use the gateway's own `HttpResponser` (`src/adapters/http/`).
+- **On refresh rotation, trust the claims the API returns, never the old token.**
+  `/internal/refresh/rotate` re-reads the user and returns its current
+  `email`/`permissions`; the gateway must put those on `res.locals.user` so a
+  revoked/downgraded (or soft-deleted) account loses access on the next rotation
+  rather than carrying stale claims for the whole refresh lifetime.
+- **`remember` is a strict boolean** (`=== true`) and the "remember me" refresh
+  lifetime is bounded by `JWT_REFRESH_REMEMBER_DAYS` (default 30) — never a
+  year-long token. The JWT expiry and cookie `maxAge` share that single source.
 
 ## Env vars
 
-| Var                       | Purpose                                            |
-| ------------------------- | -------------------------------------------------- |
-| `GATEWAY_PORT`            | Listen port (default 3100)                         |
-| `API_BASE_URL`            | Upstream API base (default `http://api:3200`)      |
-| `INTERNAL_JWT_PRIVATE_KEY`| EdDSA private key for signing internal tokens (PEM)|
-| `CORS_ORIGIN`             | Comma-separated allowed origins                    |
+| Var                         | Purpose                                             |
+| --------------------------- | --------------------------------------------------- |
+| `GATEWAY_PORT`              | Listen port (default 3100)                          |
+| `API_BASE_URL`              | Upstream API base (default `http://api:3200`)       |
+| `INTERNAL_JWT_PRIVATE_KEY`  | EdDSA private key for signing internal tokens (PEM) |
+| `CORS_ORIGIN`               | Comma-separated allowed origins                     |
+| `JWT_REFRESH_REMEMBER_DAYS` | "remember me" refresh lifetime in days (default 30) |
 
 ## Testing
 

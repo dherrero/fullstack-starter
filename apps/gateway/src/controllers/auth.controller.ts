@@ -12,7 +12,10 @@ class AuthController {
   login = async (req: Request, res: Response) => {
     const requestId = randomUUID();
     try {
-      const { email, password, remember } = req.body ?? {};
+      const { email, password } = req.body ?? {};
+      // Strict boolean: any truthy non-true value (e.g. {} or "yes") must not
+      // silently opt the client into the long-lived "remember me" token (T-5).
+      const remember = req.body?.remember === true;
       if (!email || !password) {
         return HttpResponser.errorJson(
           res,

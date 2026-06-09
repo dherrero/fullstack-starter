@@ -1,5 +1,5 @@
 import HttpResponser from '@api/adapters/http/http.responser';
-import { refreshTokenFamilyService } from '@api/services';
+import { authService, refreshTokenFamilyService } from '@api/services';
 import type { Request, Response } from 'express';
 
 /**
@@ -38,13 +38,29 @@ class RefreshLifecycleController {
       }
       const outcome = await refreshTokenFamilyService.rotate({ jti });
       switch (outcome.status) {
-        case 'rotated':
+        case 'rotated': {
+          // Re-read the user from the authoritative source on every rotation so
+          // revoked/downgraded permissions (and soft-deleted accounts) take
+          // effect immediately, instead of carrying stale claims from the old
+          // refresh token forward (T-5). getUser already filters deleted:false.
+          const user = await authService.getUser(outcome.userId);
+          if (!user) {
+            await refreshTokenFamilyService.revokeFamily(outcome.familyId);
+            return HttpResponser.errorJson(
+              res,
+              { message: 'User no longer active' },
+              401,
+            );
+          }
           return HttpResponser.successJson(res, {
             status: outcome.status,
             userId: outcome.userId,
             familyId: outcome.familyId,
             parentJti: outcome.parentJti,
+            email: user.email,
+            permissions: user.permissions,
           });
+        }
         case 'reused-revoked':
         case 'family-revoked':
           return HttpResponser.errorJson(

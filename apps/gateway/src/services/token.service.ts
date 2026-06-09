@@ -4,6 +4,20 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 
 export type ClientTokenType = 'access' | 'refresh';
 
+const DEFAULT_REMEMBER_DAYS = 30;
+
+/**
+ * Lifetime (in days) of a "remember me" refresh token / cookie. Single source
+ * of truth shared by the JWT expiry and the cookie maxAge so they never drift.
+ */
+export const rememberRefreshDays = (): number => {
+  const parsed = Number(process.env.JWT_REFRESH_REMEMBER_DAYS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_REMEMBER_DAYS;
+};
+
+export const rememberRefreshMaxAgeMs = (): number =>
+  rememberRefreshDays() * 24 * 60 * 60 * 1000;
+
 export interface AccessTokenPayload extends JwtPayload {
   id: number;
   email: string;
@@ -81,8 +95,13 @@ class TokenService {
       typ: 'refresh',
       jti: input.jti ?? randomUUID(),
     };
+    // "remember me" leans on refresh rotation rather than a year-long token: a
+    // bounded window (default 30d) limits how long stale/revoked sessions live.
+    const rememberDays = rememberRefreshDays();
     const expiresIn = (
-      input.remember ? '365d' : (process.env.JWT_REFRESH_EXPIRES_IN ?? '8h')
+      input.remember
+        ? `${rememberDays}d`
+        : (process.env.JWT_REFRESH_EXPIRES_IN ?? '8h')
     ) as jwt.SignOptions['expiresIn'];
     return jwt.sign(payload, this.#refreshSecret(), {
       algorithm: 'HS256',

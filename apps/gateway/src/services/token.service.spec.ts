@@ -57,7 +57,7 @@ describe('TokenService', () => {
       expect(decoded.jti).toBeDefined();
     });
 
-    it('extends expiry when remember=true', async () => {
+    it('extends expiry to the bounded remember window when remember=true', async () => {
       const token = await tokenService.generateRefreshToken({
         id: 1,
         email: 'a@b.com',
@@ -65,9 +65,12 @@ describe('TokenService', () => {
         remember: true,
       });
       const decoded = tokenService.verifyRefreshToken(token);
-      expect((decoded.exp ?? 0) - (decoded.iat ?? 0)).toBeGreaterThan(
-        30 * 24 * 60 * 60,
-      );
+      const lifetime = (decoded.exp ?? 0) - (decoded.iat ?? 0);
+      // Default 30d window — much longer than the 8h non-remember token, but no
+      // longer a year-long token (T-5).
+      expect(lifetime).toBeGreaterThan(8 * 60 * 60);
+      expect(lifetime).toBeLessThanOrEqual(31 * 24 * 60 * 60);
+      expect(lifetime).toBeGreaterThanOrEqual(29 * 24 * 60 * 60);
     });
 
     it('rejects a refresh token verified with the access secret', async () => {

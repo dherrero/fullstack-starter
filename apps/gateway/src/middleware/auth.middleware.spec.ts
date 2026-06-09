@@ -142,6 +142,10 @@ describe('hasPermission', () => {
           userId: 7,
           familyId: FAMILY,
           parentJti: 'old-jti',
+          // api re-reads the user: the gateway must trust THESE claims, not the
+          // ones embedded in the old refresh token (T-5).
+          email: 'fresh@b.com',
+          permissions: [Permission.READ_SOME_ENTITY],
         },
       },
       { status: 201, body: { recorded: true } },
@@ -158,6 +162,11 @@ describe('hasPermission', () => {
 
     expect(next).toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.locals.user).toEqual({
+      id: 7,
+      email: 'fresh@b.com',
+      permissions: [Permission.READ_SOME_ENTITY],
+    });
     expect(setHeader).toHaveBeenCalledWith('Authorization', expect.any(String));
     expect(cookie).toHaveBeenCalledWith(
       'refreshToken',
