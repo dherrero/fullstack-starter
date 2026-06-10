@@ -750,7 +750,7 @@ En producción, aplicar el SQL manualmente sobre la DB.
 
 ### Roadmap
 
-- [ ] SSO/OIDC en el gateway para clientes enterprise (Okta, Azure AD, Auth0)
+- [x] SSO/OIDC en el gateway para clientes enterprise (Okta, Azure AD, Auth0) — ver [docs/SECURITY.md → Federación OIDC](docs/SECURITY.md#federación-oidc-sso-okta--azure-ad--auth0)
 - [ ] SAML para tenants legacy
 - [ ] SCIM 2.0 para aprovisionamiento masivo
 - [ ] Multi-tenancy en CRUDs

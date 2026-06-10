@@ -196,3 +196,76 @@ clave privada en otros servicios.
   siguen funcionando hasta que expiren.
 - Los logs incluyen `requestId` (cabecera `X-Request-Id`) para correlar
   trazas entre gateway y API.
+
+## Federación OIDC (SSO: Okta · Azure AD · Auth0)
+
+El gateway actúa como **Relying Party (RP) OIDC**. Hace todo el handshake y
+termina convirtiendo la identidad federada en **la misma sesión local** de
+siempre (access JWT + cookie refresh con familia/rotación). El API nunca habla
+con el IdP y sigue confiando **solo** en el JWT interno EdDSA. Sin proveedores
+configurados, el SSO está desactivado y el sistema se comporta igual que hoy.
+
+### Flujo
+
+```
+browser ──/auth/sso/:p/login──▶ gateway  (state+nonce+PKCE → cookie tx firmada)
+   │                                │ 302
+   ▼                                ▼
+  IdP  ◀── authorization_endpoint ──┘
+   │ login del usuario
+   ▼ 302 con code+state
+browser ──/auth/sso/:p/callback──▶ gateway
+                                    │ valida state (cookie) + provider (mix-up)
+                                    │ canjea code con PKCE; openid-client valida
+                                    │ el ID token (firma/JWKS, iss, aud, exp, nonce)
+                                    │ mapea grupos→permisos (sugerencia)
+                                    │ ApiClient.resolveFederatedUser (scope
+                                    │   federated.identity) → usuario local
+                                    │ respondWithTokens (sesión local estándar)
+                                    ▼ 302 a returnTo (allowlist same-site)
+```
+
+### Decisiones de seguridad
+
+- **Authorization Code + PKCE (S256)** — nunca implicit flow.
+- **state** anti-CSRF y **nonce** anti-replay viven en una **cookie de
+  transacción JWT firmada, HttpOnly, SameSite=Lax** (Lax es obligatorio para
+  sobrevivir el redirect cross-site del IdP), TTL 5 min, single-use.
+- **Validación del ID token** delegada a `openid-client` (firma vía JWKS, `iss`,
+  `aud`, `exp`, `nonce`); algoritmos seguros, `alg:none` rechazado.
+- **Mix-up multi-IdP**: el callback se ata al proveedor que inició el flujo.
+- **Account takeover**: solo se vincula/aprovisiona con `email_verified === true`.
+  Usuarios existentes conservan sus permisos almacenados (los claims de grupos
+  son _sugerencia_, nunca autoritativos sobre una cuenta viva).
+- **Escalada de privilegios**: el aprovisionamiento JIT **nunca** concede ADMIN
+  y aplica mínimo privilegio por defecto. Los permisos son autoritativos en el
+  API, no en el cliente.
+- **Usuarios federados sin contraseña local** (`password = NULL`,
+  `auth_source = 'federated'`); `validateCredentials` rechaza el login local de
+  cuentas con password NULL o `auth_source != 'local'` (cierra el bypass).
+- **SSRF** en discovery/JWKS: solo issuers `https`, con bloqueo de
+  loopback/link-local/metadata (169.254.169.254)/RFC1918. Escape hatch
+  `SSO_ALLOW_INSECURE_ISSUERS` solo dev.
+- **Open redirect**: `returnTo` y `post_logout_redirect_uri` restringidos a
+  rutas same-site (se rechazan absolutas, `//`, `\\`, `javascript:`, control).
+- **Sin fuga de secretos/errores**: `client_secret` solo en el gateway, nunca
+  logueado; los `error_description` del IdP nunca se reflejan (redirect genérico
+  `/login?sso_error=1`).
+- **Logout federado** (RP-initiated `end_session`): siempre revoca la familia de
+  refresh local primero (IdP caído nunca mantiene viva la sesión), luego redirige
+  al `end_session_endpoint` con `id_token_hint` (en cookie firmada HttpOnly).
+  **Back-channel logout** queda fuera de alcance del starter (requiere endpoint
+  receptor de logout_token con validación de firma/`events`); el RP-initiated
+  cubre el caso principal sin estado de servidor adicional.
+
+### Alta de un proveedor
+
+1. Registrá la app en el IdP. El **callback URL** debe ser **exacto** (sin
+   comodines): `https://<tu-dominio>/api/v1/auth/sso/<name>/callback`.
+2. Definí en el entorno del **gateway** (ver `.env.example`):
+   `SSO_<NAME>_ISSUER`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_REDIRECT_URI` y,
+   opcionalmente, `_SCOPES`, `_GROUPS_CLAIM`, `_PERMISSION_MAP`,
+   `_POST_LOGOUT_REDIRECT_URI`, `_DISPLAY_NAME`, `_ICON_KEY`.
+3. Configurá `SSO_STATE_SECRET` (secreto dedicado en producción).
+4. `<NAME>` (en minúsculas) es el id del proveedor. El front pinta un botón por
+   proveedor desde `GET /api/v1/auth/sso/providers` (solo metadatos públicos).
