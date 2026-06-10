@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 
 import api from './routes';
+import { validateSsoConfig } from './sso/provider-registry';
 
 const parseOrigins = (raw?: string): string[] =>
   (raw ?? '')
@@ -22,6 +23,9 @@ class Main {
   }
 
   start() {
+    // Fail-fast: a declared-but-misconfigured SSO provider must stop boot, not
+    // surface at runtime. No providers configured ⇒ no-op (SSO disabled).
+    validateSsoConfig();
     this.#config();
     this.#setRoutes();
     this.#app.listen(this.#port, '0.0.0.0', () => {

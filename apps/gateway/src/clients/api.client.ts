@@ -1,4 +1,8 @@
-import { Permission } from '@dto';
+import {
+  Permission,
+  ResolveFederatedUserRequestDTO,
+  ResolveFederatedUserResponseDTO,
+} from '@dto';
 import {
   INTERNAL_AUTH_HEADER,
   INTERNAL_REQUEST_ID_HEADER,
@@ -120,5 +124,22 @@ export class ApiClient {
       InternalScope.REFRESH_LIFECYCLE,
       requestId,
       'Failed to revoke refresh token',
+    );
+
+  /**
+   * Resolve or JIT-provision a local user from a federated identity the
+   * gateway has already validated. Carries the dedicated federated scope so
+   * the api endpoint stays least-privilege.
+   */
+  static resolveFederatedUser = (
+    body: ResolveFederatedUserRequestDTO,
+    requestId: string,
+  ): Promise<ResolveFederatedUserResponseDTO> =>
+    callApi(
+      '/internal/federated/resolve',
+      body,
+      InternalScope.FEDERATED_IDENTITY,
+      requestId,
+      'Federated identity could not be resolved.',
     );
 }

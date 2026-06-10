@@ -1,5 +1,6 @@
 import authController from '@gateway/controllers/auth.controller';
 import { authRateLimiter, loginRateLimiter } from '@gateway/middleware';
+import ssoRouter from '@gateway/routes/sso.routes';
 import { Router } from 'express';
 
 const authRouter = Router();
@@ -9,5 +10,8 @@ const authRouter = Router();
 authRouter.use(authRateLimiter);
 authRouter.post('/login', loginRateLimiter, authController.login);
 authRouter.post('/logout', authController.logout);
+
+// OIDC SSO handshake + public provider list (inherits authRateLimiter).
+authRouter.use('/sso', ssoRouter);
 
 export default authRouter;
