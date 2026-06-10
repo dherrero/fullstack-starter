@@ -308,9 +308,9 @@ Always runs **last**, after all implementation agents have finished.
 
 ### Skills
 
-| Skill               | Invocation           | Description                                                                                                     |
-| ------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent.         |
+| Skill               | Invocation           | Description                                                                                             |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent. |
 
 > **Task tracking**: this starter is not tied to any task manager. Use whatever your team already uses (Jira, Linear, GitHub Issues, etc.) or none; the orchestration does not require one.
 
