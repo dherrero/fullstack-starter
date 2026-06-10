@@ -14,4 +14,7 @@ export enum InternalScope {
   USER_REQUEST = 'user.request',
   AUTH_VALIDATE = 'auth.validate',
   REFRESH_LIFECYCLE = 'refresh.lifecycle',
+  /** Guards the federated resolve/provision endpoint only. Least-privilege:
+   *  does not widen or overlap USER_REQUEST, AUTH_VALIDATE, or REFRESH_LIFECYCLE. */
+  FEDERATED_IDENTITY = 'federated.identity',
 }
