@@ -51,3 +51,22 @@ export const idParamSchema = z.object({
 export type UserCreateInput = z.infer<typeof userCreateSchema>;
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>;
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
+
+/**
+ * Schema for the internal federated resolve/provision endpoint.
+ * Called exclusively by the gateway after it has fully validated an OIDC
+ * ID token. `.strict()` rejects extra keys (mass-assignment defense).
+ */
+export const resolveFederatedUserSchema = z
+  .object({
+    provider: z.string().min(1).max(50),
+    subject: z.string().min(1).max(255),
+    email: z.string().email(),
+    emailVerified: z.boolean(),
+    suggestedPermissions: z.array(z.nativeEnum(Permission)),
+  })
+  .strict();
+
+export type ResolveFederatedUserInput = z.infer<
+  typeof resolveFederatedUserSchema
+>;

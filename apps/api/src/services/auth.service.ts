@@ -14,6 +14,12 @@ class AuthService {
       where: { email, deleted: false },
     });
     if (!user) throw new Error('Email or password incorrect.');
+    // Federated-only accounts have no local credential (password = NULL,
+    // auth_source = 'federated'). Reject local login before bcrypt so a
+    // NULL/empty stored password can never authenticate (auth-bypass defense).
+    if (!user.password || user.authSource !== 'local') {
+      throw new Error('Email or password incorrect.');
+    }
     const validPassword = await this.#comparePassword(password, user.password);
     if (!validPassword) throw new Error('Email or password incorrect.');
     return user;
