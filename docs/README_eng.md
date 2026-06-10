@@ -234,10 +234,14 @@ This project is configured to work optimally with **Claude Code**, Anthropic's c
 ├── agents/                      # Specialised subagents
 │   ├── database-specialist.md   # Database (PostgreSQL, migrations, indexes)
 │   ├── backend-developer.md     # Backend (Express, Sequelize, services, JWT)
-│   ├── frontend-developer.md    # Frontend (Angular, components, forms)
+│   ├── frontend-developer.md    # Frontend — logic (Angular, components, forms)
+│   ├── ux-ui-designer.md        # Frontend — design (UX/UI, accessibility, SEO, PWA)
 │   └── qa-engineer.md           # Quality assurance (tests, linting, coverage)
 ├── skills/                      # Invokable skills
-│   └── angular-developer.md     # Official Angular guidelines (Google source)
+│   ├── angular-developer.md     # Official Angular guidelines (Google source)
+│   ├── frontend-design/         # Aesthetics + design-token system
+│   ├── web-design-review/       # a11y / SEO / UX audit (file:line output)
+│   └── angular-pwa-seo/         # PWA (manifest, service worker) + SEO
 └── settings.local.json          # Permissions and allowed/denied operations
 ```
 
@@ -250,16 +254,23 @@ User request
       ↓
 [AGENTS.md] Orchestrator
       ↓
-┌─────┬──────────┬──────────┐
-↓     ↓          ↓          ↓
-DB  Backend  Frontend      QA
-↓     ↓          ↓          ↓
-└─────┴──────────┴──────────┘
+┌─────┬──────────┬─────────────────────────────┬──────┐
+↓     ↓          ↓                             ↓      ↓
+DB  Backend  Frontend                          QA
+             ├─ ux-ui-designer (design)          │
+             ├─ frontend-developer (logic)       │
+             └─ ux-ui-designer (a11y/SEO review) │
+↓     ↓          ↓                             ↓      ↓
+└─────┴──────────┴─────────────────────────────┴──────┘
       ↓
 Layer-by-layer report to user
 ```
 
 Execution order respects dependencies: database → backend → frontend → QA.
+In the frontend layer, **two** agents collaborate without overlapping: `ux-ui-designer`
+defines the design (tokens, accessibility, SEO, PWA), `frontend-developer` implements the
+logic, and the designer closes with a review pass. The orchestrator sequences them so they
+never edit the same file at once.
 
 ### Subagents
 
@@ -293,6 +304,26 @@ Expert in Angular following Clean Architecture and the latest official best prac
 - Lazy-loaded routes with `loadComponent()` / `loadChildren()`
 - Signal Forms for new forms (Angular v21+)
 - DTOs imported from `libs/rest-dto` (single source of truth, never redefined locally)
+- **Consumes the designer's design tokens** — never hardcodes colours/spacing
+
+#### 🎨 UX/UI Designer
+
+Expert in the frontend's **experience and presentation layer**. Collaborates with
+`frontend-developer` without overlapping: the designer defines and reviews the look &
+feel, accessibility, SEO and PWA; the developer implements the logic.
+
+- **UX/UI & theming**: a **design-token** system (light/dark) mapped onto Bootstrap's
+  `--bs-*` variables; **mobile-first** responsive layout; visual states
+  (hover/focus/disabled/loading/empty/error)
+- **Accessibility** (WCAG 2.2 AA): semantic HTML, ARIA, keyboard nav, `:focus-visible`,
+  contrast, `prefers-reduced-motion`
+- **SEO**: per-route `Title`/`Meta`, Open Graph/Twitter, canonical, JSON-LD, Core Web Vitals
+- **PWA**: web app manifest, service worker (`@angular/service-worker`), offline & install
+- **Lanes** (to avoid clashes): edits styles/tokens, `index.html`, manifest/`ngsw-config`,
+  i18n keys and template markup (semantics/ARIA/classes/`alt`); does **not** touch
+  component logic — when needed, hands a _spec_ with contracts to the developer
+- Real stack: **Bootstrap 5 + ng-bootstrap + Lineicons** (not Material or Tailwind)
+- Skills: `/frontend-design`, `/web-design-review`, `/angular-pwa-seo`
 
 #### ✅ QA Engineer
 
@@ -308,9 +339,12 @@ Always runs **last**, after all implementation agents have finished.
 
 ### Skills
 
-| Skill               | Invocation           | Description                                                                                             |
-| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
-| `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent. |
+| Skill               | Invocation           | Description                                                                                                       |
+| ------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent.           |
+| `frontend-design`   | `/frontend-design`   | Aesthetic design + design-token system (light/dark), design philosophies, mobile-first. Used by `ux-ui-designer`. |
+| `web-design-review` | `/web-design-review` | Accessibility / SEO / UX audit with terse `file:line` output. Used by `ux-ui-designer`.                           |
+| `angular-pwa-seo`   | `/angular-pwa-seo`   | Sets up/audits PWA (manifest, service worker) and SEO (meta, JSON-LD) in Angular. Used by `ux-ui-designer`.       |
 
 > **Task tracking**: this starter is not tied to any task manager. Use whatever your team already uses (Jira, Linear, GitHub Issues, etc.) or none; the orchestration does not require one.
 
