@@ -235,10 +235,14 @@ Este proyecto está configurado para trabajar de forma óptima con **Claude Code
 ├── agents/                      # Subagentes especializados
 │   ├── database-specialist.md   # Base de datos (PostgreSQL, migraciones, índices)
 │   ├── backend-developer.md     # Backend (Express, Sequelize, servicios, JWT)
-│   ├── frontend-developer.md    # Frontend (Angular, componentes, formularios)
+│   ├── frontend-developer.md    # Frontend — lógica (Angular, componentes, formularios)
+│   ├── ux-ui-designer.md        # Frontend — diseño (UX/UI, accesibilidad, SEO, PWA)
 │   └── qa-engineer.md           # Control de calidad (tests, linting, cobertura)
 ├── skills/                      # Skills invocables
-│   └── angular-developer.md     # Directrices oficiales de Angular (fuente Google)
+│   ├── angular-developer.md     # Directrices oficiales de Angular (fuente Google)
+│   ├── frontend-design/         # Estética + sistema de design tokens
+│   ├── web-design-review/       # Auditoría a11y / SEO / UX (salida file:line)
+│   └── angular-pwa-seo/         # PWA (manifest, service worker) + SEO
 └── settings.local.json          # Permisos y lista de operaciones permitidas/denegadas
 ```
 
@@ -251,16 +255,23 @@ Petición del usuario
          ↓
   [AGENTS.md] Orquestador
          ↓
-  ┌──────┬──────────┬──────────┐
-  ↓      ↓          ↓          ↓
- DB   Backend   Frontend      QA
-  ↓      ↓          ↓          ↓
-  └──────┴──────────┴──────────┘
+  ┌──────┬──────────┬─────────────────────────────┬──────┐
+  ↓      ↓          ↓                             ↓      ↓
+ DB   Backend   Frontend                          QA
+                 ├─ ux-ui-designer (diseño)         │
+                 ├─ frontend-developer (lógica)     │
+                 └─ ux-ui-designer (review a11y/SEO) │
+  ↓      ↓          ↓                             ↓      ↓
+  └──────┴──────────┴─────────────────────────────┴──────┘
          ↓
   Informe por capa al usuario
 ```
 
 El orden de ejecución respeta las dependencias: base de datos → backend → frontend → QA.
+En la capa de frontend colaboran **dos** agentes sin pisarse: `ux-ui-designer` define el
+diseño (tokens, accesibilidad, SEO, PWA), `frontend-developer` implementa la lógica, y el
+diseñador cierra con un pase de revisión. El orquestador los secuencia para que nunca
+editen el mismo fichero a la vez.
 
 ### Subagentes
 
@@ -294,6 +305,26 @@ Especialista en Angular siguiendo Clean Architecture y las últimas prácticas o
 - Rutas lazy-loaded con `loadComponent()` / `loadChildren()`
 - Signal Forms para nuevos formularios (Angular v21+)
 - DTOs importados de `libs/rest-dto` (fuente única de verdad, nunca redefinidos)
+- **Consume los design tokens** del diseñador — nunca hardcodea colores/espaciados
+
+#### 🎨 UX/UI Designer
+
+Especialista en la **capa de experiencia y presentación** del frontend. Colabora con el
+`frontend-developer` sin solaparse: el diseñador define y revisa el look & feel, la
+accesibilidad, el SEO y la PWA; el desarrollador implementa la lógica.
+
+- **UX/UI y theming**: sistema de **design tokens** (light/dark) mapeados sobre las
+  variables `--bs-*` de Bootstrap; layout responsive **mobile-first**; estados visuales
+  (hover/focus/disabled/loading/empty/error)
+- **Accesibilidad** (WCAG 2.2 AA): HTML semántico, ARIA, navegación por teclado,
+  `:focus-visible`, contraste, `prefers-reduced-motion`
+- **SEO**: `Title`/`Meta` por ruta, Open Graph/Twitter, canonical, JSON-LD, Core Web Vitals
+- **PWA**: web app manifest, service worker (`@angular/service-worker`), offline e instalación
+- **Carriles** (para no pisarse): edita estilos/tokens, `index.html`, manifest/`ngsw-config`,
+  claves i18n y el markup de plantillas (semántica/ARIA/clases/`alt`); **no** toca lógica
+  de componentes — cuando hace falta, entrega un _spec_ con contratos al desarrollador
+- Stack real: **Bootstrap 5 + ng-bootstrap + Lineicons** (no Material ni Tailwind)
+- Skills: `/frontend-design`, `/web-design-review`, `/angular-pwa-seo`
 
 #### ✅ QA Engineer
 
@@ -312,6 +343,9 @@ Se ejecuta **siempre el último**, una vez que todos los agentes de implementaci
 | Skill               | Invocación           | Descripción                                                                                                              |
 | ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `angular-developer` | `/angular-developer` | Carga las directrices oficiales de Angular antes de escribir código. Se invoca automáticamente en el agente de frontend. |
+| `frontend-design`   | `/frontend-design`   | Diseño estético + sistema de design tokens (light/dark), filosofías de diseño, mobile-first. Lo usa el `ux-ui-designer`. |
+| `web-design-review` | `/web-design-review` | Auditoría de accesibilidad / SEO / UX con salida concisa `file:line`. Lo usa el `ux-ui-designer`.                        |
+| `angular-pwa-seo`   | `/angular-pwa-seo`   | Configura/audita PWA (manifest, service worker) y SEO (meta, JSON-LD) en Angular. Lo usa el `ux-ui-designer`.            |
 
 > **Gestión de tareas**: este starter no impone ningún gestor. Usa el que ya emplee tu equipo (Jira, Linear, GitHub Issues, etc.) o ninguno; la orquestación no lo requiere.
 
