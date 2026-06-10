@@ -68,15 +68,34 @@ must be lowercase alphanumeric with hyphens (e.g. `task-manager`, `invoice-saas`
 
 ## Subagents
 
-| Agent                 | File                                    | Responsibility                                |
-| --------------------- | --------------------------------------- | --------------------------------------------- |
-| `database-specialist` | `.claude/agents/database-specialist.md` | Schema design, SQL migrations, indexing       |
-| `backend-developer`   | `.claude/agents/backend-developer.md`   | Express routes, Sequelize models, JWT, Vitest |
-| `frontend-developer`  | `.claude/agents/frontend-developer.md`  | Angular components, signals, routing, Vitest  |
-| `qa-engineer`         | `.claude/agents/qa-engineer.md`         | Build, tests, linting, convention checklist   |
+| Agent                 | File                                    | Responsibility                                                                        |
+| --------------------- | --------------------------------------- | ------------------------------------------------------------------------------------- |
+| `database-specialist` | `.claude/agents/database-specialist.md` | Schema design, SQL migrations, indexing                                               |
+| `backend-developer`   | `.claude/agents/backend-developer.md`   | Express routes, Sequelize models, JWT, Vitest                                         |
+| `frontend-developer`  | `.claude/agents/frontend-developer.md`  | Angular feature logic: components, signals, routing, forms, services, Vitest          |
+| `ux-ui-designer`      | `.claude/agents/ux-ui-designer.md`      | Frontend experience layer: UX/UI & design tokens, accessibility (WCAG/ARIA), SEO, PWA |
+| `qa-engineer`         | `.claude/agents/qa-engineer.md`         | Build, tests, linting, convention checklist                                           |
 
 Point each subagent at the `AGENTS.md` of the package it owns so it works from the
 right layer-specific rules.
+
+### Frontend split: developer vs. designer (no overlap)
+
+The Angular layer has **two** agents that must not edit the same file at the same time —
+the orchestrator sequences them.
+
+- **`frontend-developer`** owns _feature logic_: component TypeScript, signals/state,
+  routing, guards/interceptors, forms logic, services/HTTP, unit tests. Consumes the
+  designer's tokens & spec; never invents a visual system or hardcodes colors/spacing.
+- **`ux-ui-designer`** owns the _experience & presentation layer_: visual design and
+  design tokens (`styles.scss`), responsive mobile-first layout, accessibility, SEO
+  (meta/structured data), and PWA (manifest, service worker). Edits styles, `index.html`,
+  manifest/ngsw config, i18n copy keys, and template **markup for semantics/ARIA/classes**
+  — but not component logic. When a change needs logic, it writes a spec for the developer.
+- Inside a shared `.html`: the designer owns semantics/ARIA/classes/`alt`; the developer
+  owns bindings and `@if`/`@for` control flow.
+- The designer's skills: `/frontend-design` (aesthetics & tokens), `/web-design-review`
+  (a11y/SEO/UX audit), `/angular-pwa-seo` (PWA & SEO setup).
 
 ---
 
@@ -98,7 +117,13 @@ Always in this order — each layer depends on the one above:
 
 1. `database-specialist` — schema and migration SQL first
 2. `backend-developer` — consumes the schema, exposes the API
-3. `frontend-developer` — consumes the API, renders the UI
+3. Frontend (two collaborating agents, sequenced so they never clash):
+   1. `ux-ui-designer` **(design pass)** — for UI-bearing features, first: design tokens,
+      a brief (`.design/<feature>/DESIGN_BRIEF.md`), and any SEO/PWA scaffolding it owns.
+      Skip for purely logical changes with no visual surface.
+   2. `frontend-developer` — consumes the API, the tokens and the spec; builds the feature.
+   3. `ux-ui-designer` **(review pass)** — runs `/web-design-review` (a11y/SEO/UX),
+      applies the fixes it owns, and files logic fixes back to `frontend-developer`.
 4. `qa-engineer` — always last; reviews only the layers that were modified
 
 After each subagent completes, output a one-line progress update so the user can
