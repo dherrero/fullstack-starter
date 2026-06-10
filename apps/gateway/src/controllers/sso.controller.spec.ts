@@ -11,6 +11,13 @@ vi.mock('@gateway/clients/api.client', () => ({
 }));
 vi.mock('@gateway/middleware/auth.middleware', () => ({
   respondWithTokens: vi.fn(),
+  clearRefreshCookie: vi.fn(),
+  revokeCurrentRefreshFamily: vi.fn(),
+}));
+vi.mock('@gateway/sso/sso-logout.service', () => ({
+  setLogoutHintCookie: vi.fn(),
+  clearLogoutHintCookie: vi.fn(),
+  readLogoutHint: vi.fn(),
 }));
 vi.mock('@gateway/sso/sso-transaction.service', () => ({
   setTransactionCookie: vi.fn(),
@@ -34,12 +41,20 @@ import {
 } from '@gateway/sso/provider-registry';
 import { getClient } from '@gateway/sso/discovery';
 import { ApiClient } from '@gateway/clients/api.client';
-import { respondWithTokens } from '@gateway/middleware/auth.middleware';
+import {
+  clearRefreshCookie,
+  respondWithTokens,
+  revokeCurrentRefreshFamily,
+} from '@gateway/middleware/auth.middleware';
 import {
   clearTransactionCookie,
   readTransaction,
   setTransactionCookie,
 } from '@gateway/sso/sso-transaction.service';
+import {
+  readLogoutHint,
+  setLogoutHintCookie,
+} from '@gateway/sso/sso-logout.service';
 import ssoController from './sso.controller';
 
 const config = {
@@ -71,6 +86,10 @@ const client = {
   authorizationUrl: vi.fn(() => 'https://example.okta.com/authorize?x=1'),
   callbackParams: vi.fn(() => ({ code: 'CODE', state: 'STATE' })),
   callback: vi.fn(),
+  endSessionUrl: vi.fn(() => 'https://example.okta.com/logout?id_token_hint=x'),
+  issuer: {
+    metadata: { end_session_endpoint: 'https://example.okta.com/logout' },
+  },
 };
 
 describe('SsoController', () => {
@@ -245,6 +264,77 @@ describe('SsoController', () => {
         { issueRefreshCookie: true, requestId: expect.any(String) },
       );
       expect(res.redirect).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('stores a logout hint when the IdP returns an id_token', async () => {
+      vi.mocked(getProviderConfig).mockReturnValue(config as never);
+      vi.mocked(readTransaction).mockReturnValue(goodTx);
+      client.callback.mockResolvedValueOnce({
+        id_token: 'header.payload.sig',
+        claims: () => ({
+          sub: 'okta|1',
+          email: 'alice@corp.com',
+          email_verified: true,
+          groups: [],
+        }),
+      });
+      vi.mocked(ApiClient.resolveFederatedUser).mockResolvedValue({
+        id: 1,
+        email: 'alice@corp.com',
+        permissions: [Permission.READ_SOME_ENTITY],
+      });
+      const res = mkRes();
+      await ssoController.callback(
+        { params: { provider: 'okta' }, query: {}, cookies: {} } as never,
+        res,
+      );
+      expect(setLogoutHintCookie).toHaveBeenCalledWith(res, {
+        provider: 'okta',
+        idToken: 'header.payload.sig',
+      });
+    });
+  });
+
+  describe('logout', () => {
+    it('always revokes the local family and clears cookies', async () => {
+      vi.mocked(readLogoutHint).mockReturnValue(null);
+      const res = mkRes();
+      await ssoController.logout({ query: {}, cookies: {} } as never, res);
+      expect(revokeCurrentRefreshFamily).toHaveBeenCalled();
+      expect(clearRefreshCookie).toHaveBeenCalledWith(res);
+      expect(res.redirect).toHaveBeenCalledWith('/');
+    });
+
+    it('redirects to the IdP end_session endpoint for a federated session', async () => {
+      vi.mocked(readLogoutHint).mockReturnValue({
+        provider: 'okta',
+        idToken: 'header.payload.sig',
+      });
+      vi.mocked(getProviderConfig).mockReturnValue(config as never);
+      const res = mkRes();
+      await ssoController.logout({ query: {}, cookies: {} } as never, res);
+      expect(client.endSessionUrl).toHaveBeenCalledWith(
+        expect.objectContaining({ id_token_hint: 'header.payload.sig' }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith(
+        'https://example.okta.com/logout?id_token_hint=x',
+      );
+    });
+
+    it('falls back to a local redirect when the IdP lookup fails', async () => {
+      vi.mocked(readLogoutHint).mockReturnValue({
+        provider: 'okta',
+        idToken: 'tok',
+      });
+      vi.mocked(getProviderConfig).mockReturnValue(config as never);
+      vi.mocked(getClient).mockRejectedValueOnce(new Error('idp down'));
+      const res = mkRes();
+      await ssoController.logout(
+        { query: { returnTo: '/bye' }, cookies: {} } as never,
+        res,
+      );
+      expect(clearRefreshCookie).toHaveBeenCalledWith(res);
+      expect(res.redirect).toHaveBeenCalledWith('/bye');
     });
   });
 });

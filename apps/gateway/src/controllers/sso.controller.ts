@@ -1,8 +1,17 @@
 import HttpResponser from '@gateway/adapters/http/http.responser';
 import { ApiClient } from '@gateway/clients/api.client';
-import { respondWithTokens } from '@gateway/middleware/auth.middleware';
+import {
+  clearRefreshCookie,
+  respondWithTokens,
+  revokeCurrentRefreshFamily,
+} from '@gateway/middleware/auth.middleware';
 import { getClient } from '@gateway/sso/discovery';
 import { mapGroupsToPermissions } from '@gateway/sso/permission-mapper';
+import {
+  clearLogoutHintCookie,
+  readLogoutHint,
+  setLogoutHintCookie,
+} from '@gateway/sso/sso-logout.service';
 import {
   getProviderConfig,
   listPublicProviders,
@@ -128,11 +137,60 @@ class SsoController {
         { id: user.id, email: user.email, permissions: user.permissions },
         { issueRefreshCookie: true, requestId },
       );
+      // Keep a best-effort hint so logout can also end the IdP session.
+      if (typeof tokenSet.id_token === 'string') {
+        setLogoutHintCookie(res, {
+          provider: providerId,
+          idToken: tokenSet.id_token,
+        });
+      }
       return res.redirect(safeReturnTo(tx.returnTo));
     } catch {
       // Never reflect the IdP error_description (XSS / info-leak); generic only.
       return res.redirect(SSO_ERROR_REDIRECT);
     }
+  };
+
+  /**
+   * RP-initiated logout. Always revokes the local refresh family and clears
+   * cookies FIRST (so a down IdP can never keep the local session alive), then
+   * — if the session is federated and the IdP supports end_session — redirects
+   * the browser to the provider to terminate the IdP session too. Best-effort:
+   * any IdP failure falls back to a same-site redirect.
+   */
+  logout = async (req: Request, res: Response) => {
+    const requestId = randomUUID();
+    try {
+      await revokeCurrentRefreshFamily(req, requestId);
+    } catch {
+      /* best-effort: local cookie is cleared regardless */
+    }
+    clearRefreshCookie(res);
+
+    const hint = readLogoutHint(req);
+    clearLogoutHintCookie(res);
+    const fallback = safeReturnTo(req.query.returnTo);
+
+    if (hint) {
+      const config = getProviderConfig(hint.provider);
+      if (config) {
+        try {
+          const client = await getClient(hint.provider);
+          if (client.issuer.metadata.end_session_endpoint) {
+            const endSessionUrl = client.endSessionUrl({
+              id_token_hint: hint.idToken,
+              ...(config.postLogoutRedirectUri
+                ? { post_logout_redirect_uri: config.postLogoutRedirectUri }
+                : {}),
+            });
+            return res.redirect(endSessionUrl);
+          }
+        } catch {
+          /* IdP unreachable / no end_session — fall through to local redirect */
+        }
+      }
+    }
+    return res.redirect(fallback);
   };
 }
 

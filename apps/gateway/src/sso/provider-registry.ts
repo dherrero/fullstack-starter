@@ -14,6 +14,8 @@ export interface SsoProviderConfig {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  /** Optional RP-initiated-logout return URL (registered at the IdP). */
+  postLogoutRedirectUri?: string;
   scopes: string;
   groupsClaim: string;
   permissionMap: ClaimPermissionMapping[];
@@ -142,6 +144,8 @@ export const buildRegistryFromEnv = (
       clientId: required(env, id, rawName, 'CLIENT_ID'),
       clientSecret: required(env, id, rawName, 'CLIENT_SECRET'),
       redirectUri: required(env, id, rawName, 'REDIRECT_URI'),
+      postLogoutRedirectUri:
+        env[`SSO_${rawName}_POST_LOGOUT_REDIRECT_URI`]?.trim() || undefined,
       scopes: env[`SSO_${rawName}_SCOPES`]?.trim() || 'openid profile email',
       groupsClaim: env[`SSO_${rawName}_GROUPS_CLAIM`]?.trim() || 'groups',
       permissionMap: parsePermissionMap(

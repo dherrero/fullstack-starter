@@ -5,6 +5,7 @@ import {
   respondWithTokens,
   revokeCurrentRefreshFamily,
 } from '@gateway/middleware/auth.middleware';
+import { clearLogoutHintCookie } from '@gateway/sso/sso-logout.service';
 import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 
@@ -56,9 +57,11 @@ class AuthController {
     try {
       await revokeCurrentRefreshFamily(req, requestId);
       clearRefreshCookie(res);
+      clearLogoutHintCookie(res);
       return HttpResponser.successEmpty(res);
     } catch (err) {
       clearRefreshCookie(res);
+      clearLogoutHintCookie(res);
       return HttpResponser.errorJson(res, err as Error);
     }
   };
