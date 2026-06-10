@@ -4,6 +4,27 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 
 export type ClientTokenType = 'access' | 'refresh';
 
+const DEFAULT_REMEMBER_DAYS = 30;
+
+// Bind public tokens to an issuer/audience and verify them, so a token minted
+// for a different context cannot be replayed here. Small clock tolerance avoids
+// flakiness from minor drift.
+const TOKEN_ISSUER = process.env.JWT_ISSUER ?? 'gateway';
+const TOKEN_AUDIENCE = process.env.JWT_AUDIENCE ?? 'web';
+const CLOCK_TOLERANCE_SECONDS = 5;
+
+/**
+ * Lifetime (in days) of a "remember me" refresh token / cookie. Single source
+ * of truth shared by the JWT expiry and the cookie maxAge so they never drift.
+ */
+export const rememberRefreshDays = (): number => {
+  const parsed = Number(process.env.JWT_REFRESH_REMEMBER_DAYS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_REMEMBER_DAYS;
+};
+
+export const rememberRefreshMaxAgeMs = (): number =>
+  rememberRefreshDays() * 24 * 60 * 60 * 1000;
+
 export interface AccessTokenPayload extends JwtPayload {
   id: number;
   email: string;
@@ -17,6 +38,7 @@ export interface RefreshTokenPayload extends JwtPayload {
   email: string;
   permissions: Permission[];
   remember?: boolean;
+  familyId?: string;
   typ: 'refresh';
   jti: string;
 }
@@ -33,6 +55,7 @@ export interface RefreshTokenInput {
   email: string;
   permissions: Permission[];
   remember?: boolean;
+  familyId?: string;
   jti?: string;
 }
 
@@ -64,6 +87,8 @@ class TokenService {
     };
     return jwt.sign(payload, this.#accessSecret(), {
       algorithm: 'HS256',
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
       expiresIn:
         (process.env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn']) ?? '4h',
     });
@@ -78,14 +103,22 @@ class TokenService {
       email: input.email,
       permissions: input.permissions,
       remember: input.remember,
+      familyId: input.familyId,
       typ: 'refresh',
       jti: input.jti ?? randomUUID(),
     };
+    // "remember me" leans on refresh rotation rather than a year-long token: a
+    // bounded window (default 30d) limits how long stale/revoked sessions live.
+    const rememberDays = rememberRefreshDays();
     const expiresIn = (
-      input.remember ? '365d' : (process.env.JWT_REFRESH_EXPIRES_IN ?? '8h')
+      input.remember
+        ? `${rememberDays}d`
+        : (process.env.JWT_REFRESH_EXPIRES_IN ?? '8h')
     ) as jwt.SignOptions['expiresIn'];
     return jwt.sign(payload, this.#refreshSecret(), {
       algorithm: 'HS256',
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
       expiresIn,
     });
   };
@@ -93,6 +126,9 @@ class TokenService {
   verifyAccessToken = (token: string): AccessTokenPayload => {
     const decoded = jwt.verify(token, this.#accessSecret(), {
       algorithms: ['HS256'],
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
+      clockTolerance: CLOCK_TOLERANCE_SECONDS,
     }) as AccessTokenPayload;
     if (decoded.typ !== 'access') {
       throw new Error(`Expected access token, got ${decoded.typ ?? 'unknown'}`);
@@ -103,6 +139,9 @@ class TokenService {
   verifyRefreshToken = (token: string): RefreshTokenPayload => {
     const decoded = jwt.verify(token, this.#refreshSecret(), {
       algorithms: ['HS256'],
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
+      clockTolerance: CLOCK_TOLERANCE_SECONDS,
     }) as RefreshTokenPayload;
     if (decoded.typ !== 'refresh') {
       throw new Error(

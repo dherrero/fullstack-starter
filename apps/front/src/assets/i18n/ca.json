@@ -24,6 +24,16 @@
       "invalid": "Usuari o contrasenya incorrectes"
     }
   },
+  "unauthorized": {
+    "title": "Accés denegat",
+    "description": "No tens permisos per veure aquesta pàgina.",
+    "back": "Tornar a l'inici"
+  },
+  "profile": {
+    "title": "El teu perfil",
+    "email": "Correu electrònic",
+    "permissions": "Permisos"
+  },
   "common": {
     "loading": "Carregant...",
     "save": "Guardar",

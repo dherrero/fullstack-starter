@@ -46,6 +46,15 @@ routes → controllers → services → models → (db via Sequelize)
 - **Never expose `password`.** `AbstractCrudService` excludes `password` from every
   read, and excludes `deleted`/`deletedAt` unless `where.deleted` is set.
 - Models import their shape from `@dto`; do not duplicate field types locally.
+- **Validate every client input.** Never pass `req.body` / `req.query` / `req.params`
+  to a service unvalidated. Put a `validate(schema, source)` middleware
+  (`src/middleware/validate.middleware.ts`) in front of the controller, using a
+  Zod schema from `@dto` (`userCreateSchema`, `userUpdateSchema`,
+  `paginationQuerySchema`, `idParamSchema`, …). Input schemas are `.strict()`, so
+  unknown keys are rejected at the edge — this, plus the service-layer
+  `writableFields` allow-list, is the mass-assignment defense. Because `req.query`
+  is a read-only getter in Express 5, the parsed query is exposed on
+  `res.locals.query` (read it from there), while body/params are replaced in place.
 
 ## Internal auth
 

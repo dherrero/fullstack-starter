@@ -115,13 +115,16 @@ jobs:
       - name: 📥 Install dependencies
         run: npm ci
 
-      - name: 🔒 Run Security Audit
-        run: npm audit --audit-level moderate || true
-        continue-on-error: true
+      # Blocks the pipeline on high/critical advisories in PRODUCTION deps —
+      # the code that actually ships. Dev/build-tool advisories are reported but
+      # not gated (they churn constantly and can't be fixed without major
+      # toolchain bumps). Tighten with `npm audit fix` when prod issues appear.
+      - name: 🔒 Run Security Audit (production deps)
+        run: npm audit --omit=dev --audit-level=high
 
-      - name: 📊 Generate Audit Report
+      - name: 📊 Generate Full Audit Report
+        if: always()
         run: npm audit --json > audit-report.json || true
-        continue-on-error: true
 
       - name: 📤 Upload Audit Report
         uses: actions/upload-artifact@v4
@@ -162,7 +165,9 @@ jobs:
   notify:
     name: 📢 Notify
     runs-on: ubuntu-latest
-    needs: [lint, test, build, security, docker]
+    # build & docker are currently disabled (commented out below); keep this
+    # list in sync with the jobs that actually run or the graph is invalid.
+    needs: [lint, test, security]
     if: failure()
     steps:
       - name: 📢 Notify Failure

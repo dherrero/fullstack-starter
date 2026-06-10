@@ -36,8 +36,14 @@ next free unit after its base file.
 - Enums are real PG types (`CREATE TYPE … AS ENUM (...)`) and must match the enum in
   `libs/rest-dto` (e.g. `permission_type` ↔ `Permission`).
 - Add indexes for foreign keys and frequent lookup/filter columns.
-- Seed/bootstrap rows go at the end of the file and must reset the sequence
-  (`SELECT pg_catalog.setval(...)`).
+- **Never seed credentials or known passwords in schema files.** Schema `.sql`
+  files define structure only. Bootstrap data that includes secrets (e.g. an
+  admin user) must live in a **gated, dev-only** entrypoint script
+  (`db/zz-dev-seed.sh`) that is fail-safe OFF (does nothing unless
+  `DEV_SEED_ADMIN=true` with an explicit, externally-provided bcrypt hash).
+  Production compose never sets those vars, so it never seeds.
+- Non-secret seed/bootstrap rows may go at the end of a schema file and must
+  reset the sequence (`SELECT pg_catalog.setval(...)`).
 
 ## Workflow when adding an entity
 

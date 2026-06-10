@@ -34,6 +34,14 @@
 
             <div class="d-grid gap-2 d-md-flex justify-content-md-center">
               <button
+                class="btn btn-primary btn-lg px-4 py-3"
+                (click)="goToProfile()"
+                type="button"
+              >
+                <i class="bi bi-person-circle me-2"></i>
+                {{ 'welcome.loggedIn.viewProfile' | transloco }}
+              </button>
+              <button
                 class="btn btn-danger btn-lg px-4 py-3"
                 (click)="logout()"
                 type="button"

@@ -117,10 +117,24 @@ npm run dev
 
 ### Default Credentials
 
+The schema **seeds no users**. For security there are no default credentials.
+To create a local admin in development, generate a hash and enable the
+(dev-only) seed:
+
+```bash
+# 1. Generate the bcrypt hash of your password
+bash scripts/gen-admin-hash.sh 'your-strong-password'
+
+# 2. In your .env
+DEV_SEED_ADMIN=true
+BOOTSTRAP_ADMIN_EMAIL=admin@example.test
+BOOTSTRAP_ADMIN_PASSWORD_HASH=<the generated hash>
+
+# 3. Recreate the database so the seed runs
+npm run dev:db:clean && npm run dev:db
 ```
-Email: test@local.com
-Password: 123456
-```
+
+> Never enable `DEV_SEED_ADMIN` in production.
 
 ## 🛠️ Development Commands
 
@@ -294,9 +308,9 @@ Always runs **last**, after all implementation agents have finished.
 
 ### Skills
 
-| Skill               | Invocation           | Description                                                                                                     |
-| ------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent.         |
+| Skill               | Invocation           | Description                                                                                             |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `angular-developer` | `/angular-developer` | Loads the official Angular guidelines before writing code. Invoked automatically by the frontend agent. |
 
 > **Task tracking**: this starter is not tied to any task manager. Use whatever your team already uses (Jira, Linear, GitHub Issues, etc.) or none; the orchestration does not require one.
 

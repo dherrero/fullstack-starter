@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 
 import { getConnectionStats, testConnection } from './adapters/db/pg.connector';
 import { UPLOAD_DIR } from './globals';
@@ -58,6 +59,9 @@ class Main {
      * in the gateway and is intentionally omitted here.
      */
     this.#app.set('trust proxy', 1);
+    // Defense-in-depth security headers even though the API is private (behind
+    // the gateway). Returns JSON only, so the document CSP is left to the front.
+    this.#app.use(helmet({ contentSecurityPolicy: false }));
     this.#app.use(express.json());
     this.#app.use(dbLoggingMiddleware);
     this.#app.use(dbErrorMiddleware);

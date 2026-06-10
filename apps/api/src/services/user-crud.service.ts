@@ -4,16 +4,27 @@ import { Op } from 'sequelize';
 import { AbstractCrudService } from './abstract-crud.service';
 import authService from './auth.service';
 
+// Fields an admin may legitimately set on a user. Notably excludes id, deleted,
+// deletedAt, createdAt and updatedAt — those are never client-writable, even by
+// an admin, so they cannot be tampered with via over-posting.
+export const USER_WRITABLE_FIELDS = [
+  'email',
+  'name',
+  'lastName',
+  'permissions',
+  'password',
+];
+
 class UserCrudService extends AbstractCrudService {
   constructor() {
-    super(User);
+    super(User, USER_WRITABLE_FIELDS);
   }
 
   post = async (userData) => {
     if (userData.password) {
       userData.password = await authService.hashPassword(userData.password);
     }
-    return await this.model.create(userData);
+    return await this.model.create(userData, { fields: this.writableFields });
   };
 
   put = async (id: number, userData) => {
@@ -52,7 +63,10 @@ class UserCrudService extends AbstractCrudService {
       delete userData.password;
     }
 
-    return await this.model.update({ ...userData }, { where: { id } });
+    return await this.model.update(
+      { ...userData },
+      { where: { id }, fields: this.writableFields },
+    );
   };
 
   delete = async (id: number) => {

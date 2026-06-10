@@ -113,6 +113,9 @@ export const verifyInternalAuth = async (
     issuer: options.issuer ?? INTERNAL_AUTH_ISSUER,
     audience: options.audience ?? INTERNAL_AUTH_AUDIENCE_API,
     algorithms: [ALG],
+    // Small skew tolerance so minor clock drift between containers does not
+    // cause intermittent 401s on the 60s-TTL internal token.
+    clockTolerance: '5s',
   });
 
   const subRaw = payload.sub ?? '';

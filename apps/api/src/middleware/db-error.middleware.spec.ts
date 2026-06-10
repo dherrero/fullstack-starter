@@ -112,7 +112,10 @@ describe('Database Error Middleware', () => {
       );
 
       // Assert
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Database error:', error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Database error:', {
+        name: 'SequelizeConnectionError',
+        code: undefined,
+      });
       expect(statusMock).toHaveBeenCalledWith(503);
       expect(jsonMock).toHaveBeenCalledWith({
         error: 'Service Unavailable',
@@ -349,15 +352,12 @@ describe('Database Error Middleware', () => {
       // Simulate sending response
       mockResponse.send(testData);
 
-      // Assert
+      // Assert — metadata only: no body, no IP, no User-Agent.
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Database error on GET /api/test:',
+        'Server error on GET /api/test:',
         {
           statusCode: 503,
-          body: testData,
           timestamp: '2025-10-27T12:00:00.000Z',
-          userAgent: 'Test User Agent',
-          ip: '127.0.0.1',
         },
       );
     });
@@ -421,7 +421,7 @@ describe('Database Error Middleware', () => {
         mockResponse.send({ error: 'Error' });
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Database error'),
+          expect.stringContaining('Server error'),
           expect.objectContaining({ statusCode }),
         );
       });

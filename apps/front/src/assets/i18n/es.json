@@ -24,6 +24,16 @@
       "invalid": "Usuario o contraseña incorrectos"
     }
   },
+  "unauthorized": {
+    "title": "Acceso denegado",
+    "description": "No tienes permisos para ver esta página.",
+    "back": "Volver al inicio"
+  },
+  "profile": {
+    "title": "Tu perfil",
+    "email": "Correo electrónico",
+    "permissions": "Permisos"
+  },
   "common": {
     "loading": "Cargando...",
     "save": "Guardar",

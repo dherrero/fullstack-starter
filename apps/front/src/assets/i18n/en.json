@@ -24,6 +24,16 @@
       "invalid": "Invalid username or password"
     }
   },
+  "unauthorized": {
+    "title": "Access denied",
+    "description": "You don't have permission to view this page.",
+    "back": "Back to home"
+  },
+  "profile": {
+    "title": "Your profile",
+    "email": "Email",
+    "permissions": "Permissions"
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",

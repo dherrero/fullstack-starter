@@ -27,24 +27,24 @@ Each package has its own `AGENTS.md` with rules specific to that layer. Read the
 relevant one(s) before working in that directory — do **not** rely on this root file
 for layer detail.
 
-| Package                | Guide                          | What lives there                                          |
-| ---------------------- | ------------------------------ | --------------------------------------------------------- |
-| `apps/api`             | `apps/api/AGENTS.md`           | Express routes, Sequelize models, services, `HttpResponser`, JWT |
-| `apps/gateway`         | `apps/gateway/AGENTS.md`       | Reverse proxy, public auth, EdDSA internal-token signing  |
-| `apps/front`           | `apps/front/AGENTS.md`         | Angular components, signals, routing, forms, i18n         |
-| `libs/rest-dto`        | `libs/rest-dto/AGENTS.md`      | Shared DTOs and API contracts (the single source of truth) |
-| `libs/internal-auth`   | `libs/internal-auth/AGENTS.md` | EdDSA sign/verify for service-to-service auth             |
-| `db`                   | `db/AGENTS.md`                 | SQL migration files and naming conventions                |
+| Package              | Guide                          | What lives there                                                 |
+| -------------------- | ------------------------------ | ---------------------------------------------------------------- |
+| `apps/api`           | `apps/api/AGENTS.md`           | Express routes, Sequelize models, services, `HttpResponser`, JWT |
+| `apps/gateway`       | `apps/gateway/AGENTS.md`       | Reverse proxy, public auth, EdDSA internal-token signing         |
+| `apps/front`         | `apps/front/AGENTS.md`         | Angular components, signals, routing, forms, i18n                |
+| `libs/rest-dto`      | `libs/rest-dto/AGENTS.md`      | Shared DTOs and API contracts (the single source of truth)       |
+| `libs/internal-auth` | `libs/internal-auth/AGENTS.md` | EdDSA sign/verify for service-to-service auth                    |
+| `db`                 | `db/AGENTS.md`                 | SQL migration files and naming conventions                       |
 
 ### TypeScript path aliases (from `tsconfig.base.json`)
 
-| Alias             | Resolves to                  |
-| ----------------- | ---------------------------- |
-| `@dto`            | `libs/rest-dto/src/index.ts` |
-| `@internal-auth`  | `libs/internal-auth/src/index.ts` |
-| `@front/*`        | `apps/front/src/*`           |
-| `@api/*`          | `apps/api/src/*`             |
-| `@gateway/*`      | `apps/gateway/src/*`         |
+| Alias            | Resolves to                       |
+| ---------------- | --------------------------------- |
+| `@dto`           | `libs/rest-dto/src/index.ts`      |
+| `@internal-auth` | `libs/internal-auth/src/index.ts` |
+| `@front/*`       | `apps/front/src/*`                |
+| `@api/*`         | `apps/api/src/*`                  |
+| `@gateway/*`     | `apps/gateway/src/*`              |
 
 ---
 

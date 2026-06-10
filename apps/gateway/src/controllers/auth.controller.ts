@@ -12,7 +12,10 @@ class AuthController {
   login = async (req: Request, res: Response) => {
     const requestId = randomUUID();
     try {
-      const { email, password, remember } = req.body ?? {};
+      const { email, password } = req.body ?? {};
+      // Strict boolean: any truthy non-true value (e.g. {} or "yes") must not
+      // silently opt the client into the long-lived "remember me" token (T-5).
+      const remember = req.body?.remember === true;
       if (!email || !password) {
         return HttpResponser.errorJson(
           res,
@@ -37,9 +40,14 @@ class AuthController {
         { issueRefreshCookie: true, requestId },
       );
       return HttpResponser.successEmpty(res);
-    } catch (err) {
-      const status = (err as { statusCode?: number })?.statusCode ?? 401;
-      return HttpResponser.errorJson(res, err as Error, status);
+    } catch {
+      // Always a generic 401 — never forward the upstream message, which could
+      // reveal whether an account exists (user enumeration).
+      return HttpResponser.errorJson(
+        res,
+        { message: 'Invalid email or password' },
+        401,
+      );
     }
   };
 

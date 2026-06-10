@@ -69,6 +69,15 @@ describe('AuthService', () => {
 
       expect(service.tokenDecoded).toEqual(userData);
     });
+
+    it('returns empty claims when there is no token', () => {
+      expect(service.tokenDecoded).toEqual({});
+    });
+
+    it('returns empty claims (no throw) for a malformed token', () => {
+      service.setToken('not-a-jwt');
+      expect(service.tokenDecoded).toEqual({});
+    });
   });
 
   describe('isLoggedIn$ observable', () => {

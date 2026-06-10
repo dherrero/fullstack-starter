@@ -36,7 +36,12 @@ export const sequelizeErrorMiddleware = (
 ) => {
   // Verificar si es un error de Sequelize
   if (error.name && error.name.startsWith('Sequelize')) {
-    console.error('Database error:', error);
+    // Log only error metadata — never the full error object, which can carry
+    // query fragments and parameter values (PII / sensitive data).
+    console.error('Database error:', {
+      name: error.name,
+      code: error.original?.code ?? error.parent?.code,
+    });
 
     // Mapear errores comunes de Sequelize
     switch (error.name) {
@@ -117,14 +122,12 @@ export const dbLoggingMiddleware = (
   const originalSend = res.send;
 
   res.send = function (data) {
-    // Log errores de base de datos
+    // Log only request/response metadata on 5xx — never the response body,
+    // client IP or User-Agent (PII and potential leakage of error internals).
     if (res.statusCode >= 500 && res.statusCode < 600) {
-      console.error(`Database error on ${req.method} ${req.path}:`, {
+      console.error(`Server error on ${req.method} ${req.path}:`, {
         statusCode: res.statusCode,
-        body: data,
         timestamp: new Date().toISOString(),
-        userAgent: req.get('User-Agent'),
-        ip: req.ip,
       });
     }
 

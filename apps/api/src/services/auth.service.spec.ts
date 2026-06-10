@@ -18,7 +18,7 @@ vi.mock('bcrypt', () => ({
 describe('AuthService (internal)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.HASH_SALT_ROUNDS = '10';
+    process.env.HASH_SALT_ROUNDS = '14';
   });
 
   describe('validateCredentials', () => {
@@ -35,7 +35,7 @@ describe('AuthService (internal)', () => {
       const result = await authService.validateCredentials('a@b.com', 'plain');
 
       expect(User.findOne).toHaveBeenCalledWith({
-        where: { email: 'a@b.com' },
+        where: { email: 'a@b.com', deleted: false },
       });
       expect(bcrypt.compare).toHaveBeenCalledWith('plain', 'hashed');
       expect(result).toEqual(mockUser);
@@ -60,14 +60,39 @@ describe('AuthService (internal)', () => {
     });
   });
 
+  describe('getUser', () => {
+    it('only resolves non-deleted users (soft-delete filter)', async () => {
+      vi.mocked(User.findOne).mockResolvedValue(null);
+
+      const result = await authService.getUser(1);
+
+      expect(User.findOne).toHaveBeenCalledWith({
+        where: { id: 1, deleted: false },
+      });
+      expect(result).toBeNull();
+    });
+  });
+
   describe('hashPassword', () => {
-    it('delegates to bcrypt.hash with HASH_SALT_ROUNDS env', async () => {
+    it('delegates to bcrypt.hash with HASH_SALT_ROUNDS as a number', async () => {
       vi.mocked(bcrypt.hash).mockResolvedValue('hashed' as never);
 
       const result = await authService.hashPassword('pwd');
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('pwd', '10');
+      expect(bcrypt.hash).toHaveBeenCalledWith('pwd', 14);
       expect(result).toBe('hashed');
+    });
+
+    it('enforces a minimum cost of 12 for low/invalid values', async () => {
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed' as never);
+
+      process.env.HASH_SALT_ROUNDS = '10';
+      await authService.hashPassword('pwd');
+      expect(bcrypt.hash).toHaveBeenLastCalledWith('pwd', 12);
+
+      process.env.HASH_SALT_ROUNDS = 'not-a-number';
+      await authService.hashPassword('pwd');
+      expect(bcrypt.hash).toHaveBeenLastCalledWith('pwd', 12);
     });
   });
 });

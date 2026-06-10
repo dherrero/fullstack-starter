@@ -8,9 +8,18 @@ import sequelize, { ModelStatic } from 'sequelize';
 
 export abstract class AbstractCrudService {
   protected model: ModelStatic<any>;
+  /**
+   * Allow-list of attributes a client may write through post/put. When set, it
+   * is passed as Sequelize's `fields` option so any extra key in the payload
+   * (e.g. `permissions`, `deleted`, `deletedAt`, `id`) is silently ignored,
+   * preventing mass-assignment / over-posting privilege escalation. Leave
+   * undefined only for internal entities with no client-facing write surface.
+   */
+  protected readonly writableFields?: string[];
 
-  constructor(model: ModelStatic<any>) {
+  constructor(model: ModelStatic<any>, writableFields?: string[]) {
     this.model = model;
+    this.writableFields = writableFields;
   }
 
   getAllPaged = async (
@@ -51,10 +60,20 @@ export abstract class AbstractCrudService {
       where,
     });
 
-  post = async (model) => await this.model.create(model);
+  post = async (model) =>
+    await this.model.create(
+      model,
+      this.writableFields ? { fields: this.writableFields } : undefined,
+    );
 
   put = async (id: number, data) =>
-    await this.model.update({ ...data }, { where: { id } });
+    await this.model.update(
+      { ...data },
+      {
+        where: { id },
+        ...(this.writableFields ? { fields: this.writableFields } : {}),
+      },
+    );
 
   delete = async (id: number) =>
     await this.model.update(

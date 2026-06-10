@@ -118,10 +118,24 @@ npm run dev
 
 ### Usuario por Defecto
 
+El esquema **no siembra ningún usuario**. Por seguridad no existen credenciales
+por defecto. Para crear un administrador local en desarrollo, genera un hash y
+habilita el seed (sólo dev):
+
+```bash
+# 1. Genera el hash bcrypt de tu contraseña
+bash scripts/gen-admin-hash.sh 'tu-contraseña-fuerte'
+
+# 2. En tu .env
+DEV_SEED_ADMIN=true
+BOOTSTRAP_ADMIN_EMAIL=admin@example.test
+BOOTSTRAP_ADMIN_PASSWORD_HASH=<el hash generado>
+
+# 3. Recrea la base de datos para que corra el seed
+npm run dev:db:clean && npm run dev:db
 ```
-Email: test@local.com
-Contraseña: 123456
-```
+
+> Nunca habilites `DEV_SEED_ADMIN` en producción.
 
 ## 🛠️ Comandos de Desarrollo
 

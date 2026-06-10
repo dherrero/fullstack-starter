@@ -1,15 +1,31 @@
 name: 🏷️ Release
 
+# Releases are DELIBERATE, not automatic. Running on every push to main meant a
+# privileged (contents:write) job with a push-capable token ran on each merge —
+# a supply-chain footgun: any pre-push step (npm lifecycle script, dependency)
+# could abuse the persisted credential to push to main. Now a maintainer
+# triggers it manually and picks the bump type.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump type
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+# Least privilege by default; the release job elevates only what it needs.
+permissions:
+  contents: read
 
 jobs:
   release:
     name: 🏷️ Version & Release
     runs-on: ubuntu-latest
-    # Skip version bump commits pushed by this same workflow
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
     permissions:
       contents: write
 
@@ -18,56 +34,40 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Do NOT leave the auth token in the local git config where any later
+          # step / lifecycle script could reuse it. The push step injects it.
+          persist-credentials: false
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
 
-      # ── Determine bump type from the commit/PR title ──────────────────────────
-      # feat!: or feat(<scope>)!: → MAJOR
-      # feat:  or feat(<scope>):  → MINOR
-      # fix:   or fix(<scope>):   → PATCH
-      # anything else             → no release
-      - name: 🔍 Determine bump type
-        id: bump
-        run: |
-          MSG=$(git log -1 --pretty=%s)
-          echo "Commit message: $MSG"
-          if echo "$MSG" | grep -qE '^feat(\(.+\))?!:'; then
-            echo "type=major" >> $GITHUB_OUTPUT
-          elif echo "$MSG" | grep -qE '^feat(\(.+\))?:'; then
-            echo "type=minor" >> $GITHUB_OUTPUT
-          elif echo "$MSG" | grep -qE '^fix(\(.+\))?:'; then
-            echo "type=patch" >> $GITHUB_OUTPUT
-          else
-            echo "type=none" >> $GITHUB_OUTPUT
-          fi
-
+      # --ignore-scripts: never run project/dependency lifecycle scripts on the
+      # privileged runner before we push.
       - name: 🔢 Bump package version
-        if: steps.bump.outputs.type != 'none'
-        run: npm version ${{ steps.bump.outputs.type }} --no-git-tag-version
-
-      - name: 📌 Read new version
-        if: steps.bump.outputs.type != 'none'
         id: version
-        run: echo "value=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: |
+          npm version ${{ inputs.bump }} --no-git-tag-version --ignore-scripts
+          echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: 📝 Commit, tag & push
-        if: steps.bump.outputs.type != 'none'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
           git commit -m "chore: release v${{ steps.version.outputs.value }} [skip ci]"
-          git tag v${{ steps.version.outputs.value }}
-          git push origin main --follow-tags
+          git tag "v${{ steps.version.outputs.value }}"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:main --follow-tags
 
       - name: 🚀 Create GitHub Release
-        if: steps.bump.outputs.type != 'none'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.value }}
           name: v${{ steps.version.outputs.value }}
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -14,23 +14,36 @@
 
 ## Folder layout (`src/app/`)
 
-| Path           | Contents                                                          |
-| -------------- | ---------------------------------------------------------------- |
-| `pages/`       | Routed feature components (`home`, `login`, …)                    |
-| `components/`  | Reusable presentational components (`confirm`, `language-switcher`) |
-| `services/`    | App-wide services; `abstract-state.class.ts` is the state base    |
-| `libs/auth/`   | Auth slice: `auth.provider`, guards, interceptors, services       |
-| `models/`      | View models (`state.model.ts`)                                    |
-| `constants/`   | App constants (`languages.constant.ts`)                           |
-| `app.config.ts`, `app.routes.ts` | Root providers and routing                      |
+| Path                             | Contents                                                            |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `pages/`                         | Routed feature components (`home`, `login`, …)                      |
+| `components/`                    | Reusable presentational components (`confirm`, `language-switcher`) |
+| `services/`                      | App-wide services; `abstract-state.class.ts` is the state base      |
+| `libs/auth/`                     | Auth slice: `auth.provider`, guards, interceptors, services         |
+| `models/`                        | View models (`state.model.ts`)                                      |
+| `constants/`                     | App constants (`languages.constant.ts`)                             |
+| `app.config.ts`, `app.routes.ts` | Root providers and routing                                          |
 
 ## Auth (`src/app/libs/auth/`)
 
 - `guards/auth.guard.ts` — gate routes by authentication.
 - `guards/auth-permission.guard.ts` — gate routes by `Permission` (from `@dto`).
-- `interceptors/auth.interceptor.ts` — attach the access token / handle refresh.
+- `interceptors/auth.interceptor.ts` — attach the access token / handle refresh
+  (only to same-origin / the configured API origin — never third parties).
+- **CSRF posture**: state-changing calls require the in-memory access token in
+  the `Authorization` header (non-cookie proof a cross-site page cannot forge),
+  and the refresh cookie is `httpOnly` + `SameSite=strict` in prod. There is no
+  cookie-based XSRF token, so do not add `withXsrfConfiguration`. `tokenDecoded`
+  is presentation-only.
 - `auth.provider.ts` — wire it all into `app.config.ts`.
 - Use these instead of inlining auth logic in components.
+- **Protected routes MUST declare `canActivate`** in `app.routes.ts`
+  (`[canActivateFn]` for auth, `[canActivateWithPermission(Permission.X)]` for
+  permissioned routes) — never rely on `@if (auth.isLoggedIn())` in the template
+  alone. Permission guards redirect to `unauthorized` (a real route) on failure.
+  Guards are **UX only**; the backend is the real authorization boundary, so a
+  protected page must still call APIs that enforce the permission server-side.
+  See `pages/profile` (auth-guarded example) and `pages/unauthorized`.
 
 ## Conventions
 

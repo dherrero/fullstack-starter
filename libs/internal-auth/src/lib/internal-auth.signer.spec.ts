@@ -64,13 +64,26 @@ describe('signUserContext / verifyInternalAuth', () => {
     ).rejects.toThrow();
   });
 
-  it('rejects expired tokens', async () => {
+  it('rejects expired tokens (beyond the 5s clock tolerance)', async () => {
     const token = await signUserContext(
       { userId: 1, permissions: [] },
       { privateKey, ttlSeconds: 1 },
     );
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    // Must exceed exp + the 5s clockTolerance to be rejected.
+    await new Promise((resolve) => setTimeout(resolve, 6500));
     await expect(verifyInternalAuth(token, { publicKey })).rejects.toThrow();
+  }, 10000);
+
+  it('tolerates small clock drift (within 5s of expiry)', async () => {
+    const token = await signUserContext(
+      { userId: 1, permissions: [] },
+      { privateKey, ttlSeconds: 1 },
+    );
+    // Expired by ~1.1s — inside the 5s tolerance, so still accepted.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await expect(
+      verifyInternalAuth(token, { publicKey }),
+    ).resolves.toMatchObject({ sub: 1 });
   });
 
   it('rejects mismatched audience', async () => {

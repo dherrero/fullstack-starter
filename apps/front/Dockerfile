@@ -28,7 +28,9 @@ ENV NODE_OPTIONS="--max-old-space-size=3072"
 RUN npm run build:front --verbose
 
 # Etapa 2: Imagen final (Nginx para servir la aplicación)
-FROM nginx
+# Pin the image for reproducible builds (avoid the moving nginx:latest tag).
+# Debian-based variant (not -alpine) so the groupadd/useradd block below works.
+FROM nginx:1.27
 
 # Definir el directorio donde se servirán los archivos
 ENV APP_DIR /usr/share/nginx/html/
