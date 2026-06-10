@@ -92,6 +92,25 @@
               {{ 'login.submit' | transloco }}
             </button>
           </div>
+          @if (providers().length > 0) {
+            <div class="col-12 mt-4">
+              <div class="text-center text-muted mb-3">
+                {{ 'login.sso.or' | transloco }}
+              </div>
+              @for (provider of providers(); track provider.id) {
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary w-100 mb-2"
+                  (click)="loginWithSso(provider.id)"
+                >
+                  {{
+                    'login.sso.continueWith'
+                      | transloco: { provider: provider.displayName }
+                  }}
+                </button>
+              }
+            </div>
+          }
         </form>
       </div>
     </div>

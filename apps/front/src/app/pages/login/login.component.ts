@@ -1,13 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
+import { SsoProviderPublicDTO } from '@dto';
 
 import { Login } from '@front/app/libs/auth/auth.interface';
 import { sanitizeRedirect } from '@front/app/libs/auth/safe-redirect';
 import { AuthService } from '@front/app/libs/auth/services/auth.service';
+import { SsoService } from '@front/app/libs/auth/services/sso.service';
 import { catchError, of, tap } from 'rxjs';
 
 @Component({
@@ -24,9 +26,12 @@ export default class LoginComponent implements OnInit {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private sso = inject(SsoService);
 
   error: string[] = [];
   loading = false;
+  readonly providers = signal<SsoProviderPublicDTO[]>([]);
 
   login = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -39,6 +44,21 @@ export default class LoginComponent implements OnInit {
     const state = navigation?.extras.state as { currentRoute: string };
     // Only honour safe same-origin paths — never an attacker-controlled URL.
     this.redirectUrl = sanitizeRedirect(state?.currentRoute);
+
+    // Generic SSO failure flag set by the gateway (never raw IdP detail).
+    if (this.route.snapshot.queryParamMap.has('sso_error')) {
+      this.error = [this.translocoService.translate('login.sso.error')];
+    }
+
+    // Configuration-driven: render a button per configured provider, or none.
+    this.sso.getProviders().subscribe({
+      next: (providers) => this.providers.set(providers),
+      error: () => this.providers.set([]),
+    });
+  }
+
+  loginWithSso(providerId: string) {
+    this.sso.login(providerId);
   }
 
   doLogin() {

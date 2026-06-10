@@ -22,6 +22,11 @@
       "required": "Aquest camp és obligatori",
       "email": "Si us plau, introdueix un correu electrònic vàlid",
       "invalid": "Usuari o contrasenya incorrectes"
+    },
+    "sso": {
+      "or": "o continua amb",
+      "continueWith": "Continua amb {{provider}}",
+      "error": "L'inici de sessió únic ha fallat. Torna-ho a provar."
     }
   },
   "unauthorized": {

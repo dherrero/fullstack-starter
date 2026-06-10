@@ -10,6 +10,13 @@ export const appRoutes: Route[] = [
     path: 'login',
     loadComponent: () => import('./pages/login/login.component'),
   },
+  // SSO landing route: the gateway redirects here after a successful federated
+  // callback; the component bootstraps the session and navigates home.
+  {
+    path: 'auth/callback',
+    loadComponent: () =>
+      import('./pages/auth-callback/auth-callback.component'),
+  },
   // Example PROTECTED route — the guard redirects anonymous users to /login.
   // Use canActivateWithPermission(...) from auth-permission.guard.ts for routes
   // that also require a specific permission. Guards are UX only; the backend is
