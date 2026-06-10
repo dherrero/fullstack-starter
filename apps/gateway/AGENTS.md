@@ -85,4 +85,10 @@ metadata and the normal access/refresh tokens.
 ## Testing
 
 Vitest, co-located `*.spec.ts`. Cover the auth middleware and token service — they are
-the security-critical units. Run: `npx nx test gateway`.
+the security-critical units. Run: `npm run test:gateway`.
+
+End-to-end specs (`*.e2e.spec.ts`) spin up a **real mock OIDC provider**
+(`oauth2-mock-server`) and exercise the full SSO handshake (discovery, PKCE,
+state, nonce, ID-token JWKS validation) plus an attack case (tampered state →
+rejection). They are excluded from the unit suite (port binding / real HTTP) and
+run with `npm run test:e2e`.

@@ -50,6 +50,7 @@
     "test:api": "vitest run --config apps/api/vitest.config.ts",
     "test:gateway": "vitest run --config apps/gateway/vitest.config.ts",
     "test:internal-auth": "vitest run --config libs/internal-auth/vitest.config.ts",
+    "test:e2e": "vitest run --config apps/gateway/vitest.e2e.config.ts",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"
   },
@@ -99,6 +100,7 @@
     "jsdom": "^27.4.0",
     "lint-staged": "^16.4.0",
     "nx": "22.7.0",
+    "oauth2-mock-server": "^8.2.3",
     "prettier": "^3.8.3",
     "react-refresh": "^0.10.0",
     "supertest": "^7.2.2",

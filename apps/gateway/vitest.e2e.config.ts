@@ -1,18 +1,15 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 
+// Dedicated config for end-to-end specs that spin up a real mock OIDC provider
+// (port binding, real HTTP). Kept out of the unit suite for determinism; run
+// with `npm run test:e2e`.
 export default defineConfig({
   test: {
     globals: true,
     root: __dirname,
     environment: 'node',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    // e2e specs (real mock IdP, port binding) run via `npm run test:e2e`.
-    exclude: ['**/node_modules/**', '**/*.e2e.{test,spec}.*'],
-    coverage: {
-      reportsDirectory: '../../coverage/apps/gateway',
-      provider: 'v8',
-    },
+    include: ['src/**/*.e2e.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
   },
   resolve: {
     alias: {
