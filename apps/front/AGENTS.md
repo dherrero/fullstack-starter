@@ -3,6 +3,28 @@
 > Layer-specific rules for the Angular app. See the root `AGENTS.md` for global
 > conventions and path aliases (`@front/*`, `@dto`).
 
+## Who works here: developer vs. designer
+
+Two agents share this app and must not edit the same file at once (the orchestrator
+sequences them — see the root `AGENTS.md`):
+
+- **`frontend-developer`** — feature logic: component TS, signals/state, routing, guards,
+  forms, services/HTTP, unit tests.
+- **`ux-ui-designer`** — experience layer: visual design & **design tokens** (`styles.scss`),
+  responsive mobile-first layout, accessibility (WCAG 2.2 AA / ARIA), SEO (per-route
+  `Title`/`Meta`, structured data) and PWA (manifest, service worker). Owns styles,
+  `index.html`, manifest/`ngsw-config.json`, i18n copy keys, and template markup for
+  semantics/ARIA/`alt`/classes — not component logic. Skills: `/frontend-design`,
+  `/web-design-review`, `/angular-pwa-seo`.
+
+Developers consume the designer's tokens — **no hardcoded colors/spacing** outside the
+token layer. Inside a `.html`, the designer owns semantics/ARIA/classes, the developer
+owns bindings and control flow.
+
+> **Stack note**: this app uses **Bootstrap 5 + `@ng-bootstrap/ng-bootstrap`** and the
+> **Lineicons** font — not Angular Material or Tailwind. Theme via Bootstrap's `--bs-*`
+> variables driven from the design tokens.
+
 ## Architecture
 
 - **Standalone components only** — no NgModules. Declare `imports` on the component.
