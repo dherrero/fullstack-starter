@@ -7,6 +7,8 @@ export default defineConfig({
     root: __dirname,
     environment: 'node',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    // e2e specs (real mock IdP, port binding) run via `npm run test:e2e`.
+    exclude: ['**/node_modules/**', '**/*.e2e.{test,spec}.*'],
     coverage: {
       reportsDirectory: '../../coverage/apps/gateway',
       provider: 'v8',

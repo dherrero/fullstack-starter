@@ -19,6 +19,18 @@ the internal API on the same private network.
 3. **Internal-token minting**: before forwarding, it signs a short-lived EdDSA token
    (`signUserContext` from `@internal-auth`) carrying `{ userId, permissions, requestId }`
    and attaches it as `INTERNAL_AUTH_HEADER`, plus `INTERNAL_REQUEST_ID_HEADER`.
+4. **OIDC Relying Party (SSO)** (`src/sso/*`, `src/controllers/sso.controller.ts`,
+   `src/routes/sso.routes.ts`): optional federated login (Okta/Azure AD/Auth0).
+   Routes under `/api/v1/auth/sso`: `GET /providers` (public metadata),
+   `GET /:provider/login`, `GET /:provider/callback`, `GET /logout`. The gateway
+   runs the whole Authorization Code + PKCE handshake, validates the ID token
+   (via `openid-client`), resolves/provisions the local user through the api
+   (`/internal/federated/resolve`, scope `FEDERATED_IDENTITY`) and then issues the
+   **same** local session via `respondWithTokens` — the api never talks to the IdP.
+   Uses **`openid-client` v5** (CJS); do NOT upgrade to v6 (ESM-only) without
+   migrating the monorepo to `moduleResolution: nodenext`. Full design & threat
+   model: `docs/SECURITY.md` → "Federación OIDC". With zero providers configured
+   the gateway behaves exactly as before.
 
 ## Request flow (must stay intact)
 
@@ -54,15 +66,29 @@ browser ──/api/*──▶ nginx ──proxy_pass──▶ gateway
 
 ## Env vars
 
-| Var                         | Purpose                                             |
-| --------------------------- | --------------------------------------------------- |
-| `GATEWAY_PORT`              | Listen port (default 3100)                          |
-| `API_BASE_URL`              | Upstream API base (default `http://api:3200`)       |
-| `INTERNAL_JWT_PRIVATE_KEY`  | EdDSA private key for signing internal tokens (PEM) |
-| `CORS_ORIGIN`               | Comma-separated allowed origins                     |
-| `JWT_REFRESH_REMEMBER_DAYS` | "remember me" refresh lifetime in days (default 30) |
+| Var                          | Purpose                                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `GATEWAY_PORT`               | Listen port (default 3100)                                                                                |
+| `API_BASE_URL`               | Upstream API base (default `http://api:3200`)                                                             |
+| `INTERNAL_JWT_PRIVATE_KEY`   | EdDSA private key for signing internal tokens (PEM)                                                       |
+| `CORS_ORIGIN`                | Comma-separated allowed origins                                                                           |
+| `JWT_REFRESH_REMEMBER_DAYS`  | "remember me" refresh lifetime in days (default 30)                                                       |
+| `SSO_<NAME>_*`               | OIDC provider config (issuer/client_id/secret/redirect_uri/…); see `.env.example`. Secrets live ONLY here |
+| `SSO_STATE_SECRET`           | Signs the OIDC transaction & logout-hint cookies (falls back to `JWT_REFRESH_SECRET`)                     |
+| `SSO_ALLOW_INSECURE_ISSUERS` | Dev-only: allow http/loopback issuers. Never enable in production                                         |
+
+**SSO hard rule:** federated login still ends in the standard local session — the
+api keeps trusting only the internal EdDSA JWT, never an IdP token. Client secrets
+and ID tokens never leave the gateway; the browser only ever sees public provider
+metadata and the normal access/refresh tokens.
 
 ## Testing
 
 Vitest, co-located `*.spec.ts`. Cover the auth middleware and token service — they are
-the security-critical units. Run: `npx nx test gateway`.
+the security-critical units. Run: `npm run test:gateway`.
+
+End-to-end specs (`*.e2e.spec.ts`) spin up a **real mock OIDC provider**
+(`oauth2-mock-server`) and exercise the full SSO handshake (discovery, PKCE,
+state, nonce, ID-token JWKS validation) plus an attack case (tampered state →
+rejection). They are excluded from the unit suite (port binding / real HTTP) and
+run with `npm run test:e2e`.

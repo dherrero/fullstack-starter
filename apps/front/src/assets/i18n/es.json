@@ -22,6 +22,11 @@
       "required": "Este campo es obligatorio",
       "email": "Por favor, introduce un correo electrónico válido",
       "invalid": "Usuario o contraseña incorrectos"
+    },
+    "sso": {
+      "or": "o continúa con",
+      "continueWith": "Continuar con {{provider}}",
+      "error": "El inicio de sesión único ha fallado. Inténtalo de nuevo."
     }
   },
   "unauthorized": {

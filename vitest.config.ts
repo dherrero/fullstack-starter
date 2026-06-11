@@ -10,6 +10,7 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/apps/front/**', // Frontend has its own config
+      '**/*.e2e.{test,spec}.*', // e2e specs run via `npm run test:e2e`
     ],
   },
   resolve: {

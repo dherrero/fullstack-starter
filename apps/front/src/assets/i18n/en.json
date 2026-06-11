@@ -22,6 +22,11 @@
       "required": "This field is required",
       "email": "Please enter a valid email address",
       "invalid": "Invalid username or password"
+    },
+    "sso": {
+      "or": "or continue with",
+      "continueWith": "Continue with {{provider}}",
+      "error": "Single sign-on failed. Please try again."
     }
   },
   "unauthorized": {

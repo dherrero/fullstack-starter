@@ -194,5 +194,11 @@ These are the cross-cutting invariants. Layer-specific rules live in each packag
 - **Soft deletes on every entity**: `deleted`, `createdAt`, `updatedAt`, `deletedAt`.
 - **Git**: feature branches only (`feat/*`, `fix/*`, `docs/*`, `chore/*`), never
   commit to `main` or `master`.
+- **Always use the `package.json` scripts**, not ad-hoc external commands. Prefer
+  `npm run build` / `build:<app>`, `npm test` / `test:<app>`, `npm run lint`,
+  `npm run dev:*` over invoking `nx`, `vitest`, `tsc`, `prettier`, etc. directly.
+  The scripts encode the right flags, configs and order; raw tooling drifts from
+  them. If a needed task has no script, add one to `package.json` rather than
+  documenting a bare command.
 - When you implement or change something significant, update the relevant `AGENTS.md`
   in the same change so it stays accurate.

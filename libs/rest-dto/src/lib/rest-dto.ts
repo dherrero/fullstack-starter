@@ -41,7 +41,10 @@ export interface UserDTO {
   name: string;
   lastName: string;
   permissions: Permission[];
-  password: string;
+  /** NULL for federated-only accounts (no local credential). */
+  password: string | null;
+  /** 'local' for password-based accounts; 'federated' for OIDC-provisioned accounts. */
+  authSource: string;
   deleted: boolean;
   createdAt: Date;
   updatedAt?: Date;

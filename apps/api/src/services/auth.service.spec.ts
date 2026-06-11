@@ -27,6 +27,7 @@ describe('AuthService (internal)', () => {
         id: 1,
         email: 'a@b.com',
         password: 'hashed',
+        authSource: 'local',
         permissions: ['ADMIN'],
       };
       vi.mocked(User.findOne).mockResolvedValue(mockUser as never);
@@ -51,12 +52,39 @@ describe('AuthService (internal)', () => {
     it('throws when password mismatch', async () => {
       vi.mocked(User.findOne).mockResolvedValue({
         password: 'hashed',
+        authSource: 'local',
       } as never);
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
       await expect(
         authService.validateCredentials('a@b.com', 'bad'),
       ).rejects.toThrow('Email or password incorrect.');
+    });
+
+    it('rejects federated-only accounts (NULL password) without hitting bcrypt', async () => {
+      vi.mocked(User.findOne).mockResolvedValue({
+        email: 'fed@b.com',
+        password: null,
+        authSource: 'federated',
+      } as never);
+
+      await expect(
+        authService.validateCredentials('fed@b.com', 'anything'),
+      ).rejects.toThrow('Email or password incorrect.');
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it('rejects local login when auth_source is not local even if a password exists', async () => {
+      vi.mocked(User.findOne).mockResolvedValue({
+        email: 'fed@b.com',
+        password: 'leftover-hash',
+        authSource: 'federated',
+      } as never);
+
+      await expect(
+        authService.validateCredentials('fed@b.com', 'anything'),
+      ).rejects.toThrow('Email or password incorrect.');
+      expect(bcrypt.compare).not.toHaveBeenCalled();
     });
   });
 

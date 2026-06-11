@@ -41,7 +41,13 @@ const User = db.define<UserModel>(
     },
     password: {
       type: DataTypes.STRING(250),
+      allowNull: true,
+    },
+    authSource: {
+      type: DataTypes.STRING(20),
       allowNull: false,
+      defaultValue: 'local',
+      field: 'auth_source',
     },
     deleted: {
       type: DataTypes.BOOLEAN,

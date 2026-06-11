@@ -27,8 +27,9 @@ export const loginRateLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  // IP comes from req.ip (trust proxy: 1 → real client behind Nginx).
-  validate: { keyGeneratorIpFallback: false },
+  // IP comes from req.ip (trust proxy: 1 → real client behind Nginx). The
+  // keyGenerator always embeds the IP, so no IP-fallback validation is needed
+  // (the `keyGeneratorIpFallback` option was removed in express-rate-limit 7.5).
   keyGenerator: (req) => {
     const email =
       typeof req.body?.email === 'string'
