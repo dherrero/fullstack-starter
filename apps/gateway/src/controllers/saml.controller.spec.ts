@@ -70,6 +70,13 @@ const samlInstance = {
     () => '<EntityDescriptor entityID="https://app.example.com"/>',
   ),
   validatePostResponseAsync: vi.fn(),
+  getLogoutUrlAsync: vi.fn(
+    async () => 'https://idp.acme.example/slo?SAMLRequest=xyz',
+  ),
+  validateRedirectAsync: vi.fn(async () => ({
+    profile: null,
+    loggedOut: true,
+  })),
 };
 
 const goodTx = {
@@ -386,6 +393,128 @@ describe('SamlController', () => {
       const res = mkRes();
       await samlController.callback(mkReq(), res);
       expect(clearSamlTransactionCookie).toHaveBeenCalledWith(res);
+    });
+  });
+
+  describe('sloRedirectUrl', () => {
+    const hint = {
+      provider: 'acme',
+      nameId: 'persistent-subject-123',
+      sessionIndex: 'sess-1',
+    };
+
+    it('returns null when the provider is unknown, OIDC, or has no logoutUrl', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue(undefined);
+      expect(await samlController.sloRedirectUrl(hint, '/')).toBeNull();
+
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'oidc',
+        config: { id: 'acme' },
+      } as never);
+      expect(await samlController.sloRedirectUrl(hint, '/')).toBeNull();
+
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: { ...samlConfig, logoutUrl: undefined },
+      } as never);
+      expect(await samlController.sloRedirectUrl(hint, '/')).toBeNull();
+    });
+
+    it('builds the IdP SLO URL with the hint identity and a vetted RelayState', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: {
+          ...samlConfig,
+          idpIssuer: 'https://idp.acme.example/metadata',
+          logoutUrl: 'https://idp.acme.example/slo',
+        },
+      } as never);
+      const url = await samlController.sloRedirectUrl(
+        hint,
+        'https://evil.com/phish', // must be neutralised to '/'
+      );
+      expect(url).toBe('https://idp.acme.example/slo?SAMLRequest=xyz');
+      expect(samlInstance.getLogoutUrlAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nameID: 'persistent-subject-123',
+          sessionIndex: 'sess-1',
+        }),
+        '/', // RelayState sanitised by safeReturnTo
+        {},
+      );
+    });
+
+    it('returns null (best-effort) when URL generation throws', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: { ...samlConfig, logoutUrl: 'https://idp.acme.example/slo' },
+      } as never);
+      samlInstance.getLogoutUrlAsync.mockRejectedValueOnce(new Error('down'));
+      expect(await samlController.sloRedirectUrl(hint, '/')).toBeNull();
+    });
+  });
+
+  describe('logoutCallback', () => {
+    it('lands on a vetted local path, neutralising external RelayState', async () => {
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.logoutCallback(
+        {
+          method: 'GET',
+          params: { provider: 'acme' },
+          query: { SAMLResponse: 'b64', RelayState: 'https://evil.com' },
+          originalUrl: '/api/v1/auth/sso/acme/logout/callback?SAMLResponse=b64',
+        } as never,
+        res as never,
+      );
+      expect(res.redirect).toHaveBeenCalledWith('/');
+    });
+
+    it('an invalid LogoutResponse never breaks the landing', async () => {
+      samlInstance.validateRedirectAsync.mockRejectedValueOnce(
+        new Error('bad signature'),
+      );
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.logoutCallback(
+        {
+          method: 'GET',
+          params: { provider: 'acme' },
+          query: { SAMLResponse: 'b64', RelayState: '/login' },
+          originalUrl: '/x?SAMLResponse=b64',
+        } as never,
+        res as never,
+      );
+      expect(res.redirect).toHaveBeenCalledWith('/login');
+    });
+
+    it('lands locally even for an unknown provider (no validation possible)', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue(undefined);
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.logoutCallback(
+        {
+          method: 'GET',
+          params: { provider: 'ghost' },
+          query: {},
+          originalUrl: '/x',
+        } as never,
+        res as never,
+      );
+      expect(res.redirect).toHaveBeenCalledWith('/login');
+    });
+
+    it('validates POST-binding LogoutResponses through the post validator', async () => {
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.logoutCallback(
+        {
+          method: 'POST',
+          params: { provider: 'acme' },
+          query: {},
+          body: { SAMLResponse: 'b64', RelayState: '/done' },
+          originalUrl: '/x',
+        } as never,
+        res as never,
+      );
+      expect(samlInstance.validatePostResponseAsync).toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/done');
     });
   });
 

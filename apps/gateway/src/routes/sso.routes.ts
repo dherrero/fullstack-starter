@@ -30,6 +30,16 @@ ssoRouter.post(
   samlController.callback,
 );
 
+// SAML SLO response landing (Redirect or POST binding). Validation failures
+// are silently ignored: the local session was fully revoked before the IdP
+// round-trip started, so a forged LogoutResponse can change no state.
+ssoRouter.get('/:provider/logout/callback', samlController.logoutCallback);
+ssoRouter.post(
+  '/:provider/logout/callback',
+  express.urlencoded({ extended: false, limit: '256kb' }),
+  samlController.logoutCallback,
+);
+
 // SAML SP metadata for IdP onboarding. Public by design: entityID, ACS URL
 // and NameID format only — never secrets or private keys.
 ssoRouter.get('/:provider/metadata', samlController.metadata);

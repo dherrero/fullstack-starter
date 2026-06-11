@@ -4,13 +4,17 @@ import { respondWithTokens } from '@gateway/middleware/auth.middleware';
 import { getFederatedProvider } from '@gateway/sso/federated-registry';
 import { mapGroupsToPermissions } from '@gateway/sso/permission-mapper';
 import { generateSamlRequestId, getSamlClient } from '@gateway/sso/saml-client';
-import { setSamlLogoutHintCookie } from '@gateway/sso/saml-logout.service';
+import {
+  SamlLogoutHint,
+  setSamlLogoutHintCookie,
+} from '@gateway/sso/saml-logout.service';
 import {
   clearSamlTransactionCookie,
   readSamlTransaction,
   setSamlTransactionCookie,
 } from '@gateway/sso/saml-transaction.service';
 import { safeReturnTo } from '@gateway/sso/sso-transaction.service';
+import type { Profile } from '@node-saml/node-saml';
 import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 
@@ -248,6 +252,82 @@ class SamlController {
         500,
       );
     }
+  };
+
+  /**
+   * Builds the IdP SLO redirect URL for a logout hint (HTTP-Redirect
+   * binding), or null when SLO is not possible. STRICTLY best-effort: the
+   * caller has ALWAYS revoked the local refresh family before calling this —
+   * a null/throwing result only skips the IdP round-trip, never keeps a
+   * local session alive.
+   *
+   * The LogoutRequest is unsigned: signing would require an SP private key,
+   * which this starter deliberately does not manage (documented in
+   * SECURITY.md). RelayState carries only a local relative path and is
+   * re-validated with `safeReturnTo` when the IdP lands back on the SLO
+   * callback.
+   */
+  sloRedirectUrl = async (
+    hint: SamlLogoutHint,
+    relayState: string,
+  ): Promise<string | null> => {
+    const fed = getFederatedProvider(hint.provider);
+    if (fed?.protocol !== 'saml' || !fed.config.logoutUrl) return null;
+
+    try {
+      const saml = getSamlClient(hint.provider);
+      const profile: Profile = {
+        issuer: fed.config.idpIssuer,
+        nameID: hint.nameId,
+        nameIDFormat:
+          hint.nameIdFormat ??
+          'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
+        ...(hint.sessionIndex ? { sessionIndex: hint.sessionIndex } : {}),
+      };
+      return await saml.getLogoutUrlAsync(
+        profile,
+        safeReturnTo(relayState),
+        {},
+      );
+    } catch {
+      return null; // best-effort: fall back to the local redirect
+    }
+  };
+
+  /**
+   * SLO response landing (GET = HTTP-Redirect binding, POST = HTTP-POST
+   * binding). The LogoutResponse is validated when possible (signature if
+   * present, InResponseTo against the request cache); ANY failure is ignored
+   * silently — by the time the IdP sends us here the local session is already
+   * fully revoked, so a forged/broken LogoutResponse can produce no state
+   * change. We simply land the browser on a vetted local path.
+   */
+  logoutCallback = async (req: Request, res: Response) => {
+    const config = samlProvider(req);
+    const relayState =
+      (typeof req.query?.RelayState === 'string' && req.query.RelayState) ||
+      (typeof req.body?.RelayState === 'string' && req.body.RelayState) ||
+      '/login';
+
+    if (config) {
+      try {
+        const saml = getSamlClient(config.id);
+        if (req.method === 'POST') {
+          await saml.validatePostResponseAsync(
+            (req.body ?? {}) as Record<string, string>,
+          );
+        } else if (typeof req.query?.SAMLResponse === 'string') {
+          const originalQuery = req.originalUrl.split('?')[1] ?? '';
+          await saml.validateRedirectAsync(
+            req.query as Record<string, string>,
+            originalQuery,
+          );
+        }
+      } catch {
+        /* silent — no state change is possible here */
+      }
+    }
+    return res.redirect(safeReturnTo(relayState));
   };
 }
 
