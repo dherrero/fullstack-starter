@@ -6,6 +6,10 @@ vi.mock('@gateway/sso/provider-registry', () => ({
 }));
 vi.mock('@gateway/sso/federated-registry', () => ({
   listPublicProviders: vi.fn(),
+  getFederatedProvider: vi.fn(),
+}));
+vi.mock('@gateway/controllers/saml.controller', () => ({
+  default: { login: vi.fn(), metadata: vi.fn() },
 }));
 vi.mock('@gateway/sso/discovery', () => ({ getClient: vi.fn() }));
 vi.mock('@gateway/clients/api.client', () => ({
@@ -38,7 +42,11 @@ vi.mock('openid-client', () => ({
 }));
 
 import { getProviderConfig } from '@gateway/sso/provider-registry';
-import { listPublicProviders } from '@gateway/sso/federated-registry';
+import {
+  getFederatedProvider,
+  listPublicProviders,
+} from '@gateway/sso/federated-registry';
+import samlController from '@gateway/controllers/saml.controller';
 import { getClient } from '@gateway/sso/discovery';
 import { ApiClient } from '@gateway/clients/api.client';
 import {
@@ -111,7 +119,7 @@ describe('SsoController', () => {
 
   describe('login', () => {
     it('404s for an unknown provider', async () => {
-      vi.mocked(getProviderConfig).mockReturnValue(undefined);
+      vi.mocked(getFederatedProvider).mockReturnValue(undefined);
       const res = mkRes();
       await ssoController.login(
         { params: { provider: 'nope' }, query: {} } as never,
@@ -121,8 +129,23 @@ describe('SsoController', () => {
       expect(setTransactionCookie).not.toHaveBeenCalled();
     });
 
+    it('dispatches SAML providers to the SAML controller', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: { id: 'acme' },
+      } as never);
+      const res = mkRes();
+      const req = { params: { provider: 'acme' }, query: {} } as never;
+      await ssoController.login(req, res);
+      expect(samlController.login).toHaveBeenCalledWith(req, res);
+      expect(setTransactionCookie).not.toHaveBeenCalled();
+    });
+
     it('stores the transaction and redirects to the IdP with PKCE S256', async () => {
-      vi.mocked(getProviderConfig).mockReturnValue(config as never);
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'oidc',
+        config,
+      } as never);
       const res = mkRes();
       await ssoController.login(
         {

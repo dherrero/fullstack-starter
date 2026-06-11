@@ -71,4 +71,17 @@ export interface SamlProviderConfig {
    * Secret — must never appear in logs, serialised responses, or error output.
    */
   decryptionPvk?: string;
+  /**
+   * When true, the AuthnRequest carries `ForceAuthn="true"`, which instructs
+   * the IdP to re-authenticate the user even if an active session exists.
+   * Use this for high-assurance flows (e.g. privilege elevation).
+   */
+  forceAuthn?: boolean;
+  /**
+   * When true (the default), the AuthnRequest omits `<RequestedAuthnContext>`.
+   * Set to `false` only if your IdP explicitly requires that element; most
+   * legacy IdPs fail or behave unexpectedly when it is present.
+   * Default: true (disabled for maximum IdP compatibility).
+   */
+  disableRequestedAuthnContext?: boolean;
 }

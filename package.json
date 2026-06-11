@@ -122,6 +122,7 @@
     "@jsverse/transloco": "^7.0.0",
     "@ng-bootstrap/ng-bootstrap": "^20.0.0",
     "@ngneat/until-destroy": "^10.0.0",
+    "@node-saml/node-saml": "5.1.0",
     "@popperjs/core": "^2.11.8",
     "axios": "^1.7.2",
     "bcrypt": "^6.0.0",

@@ -13,7 +13,11 @@ import {
   setLogoutHintCookie,
 } from '@gateway/sso/sso-logout.service';
 import { getProviderConfig } from '@gateway/sso/provider-registry';
-import { listPublicProviders } from '@gateway/sso/federated-registry';
+import {
+  getFederatedProvider,
+  listPublicProviders,
+} from '@gateway/sso/federated-registry';
+import samlController from '@gateway/controllers/saml.controller';
 import {
   clearTransactionCookie,
   readTransaction,
@@ -34,15 +38,21 @@ class SsoController {
     HttpResponser.successJson(res, listPublicProviders());
 
   /**
-   * Start the Authorization Code + PKCE flow: mint state/nonce/PKCE, stash
-   * them in the signed transaction cookie, and redirect to the IdP.
+   * Unified federated login entry point: dispatches by the provider's
+   * protocol. SAML providers are handled by `saml.controller.ts`; OIDC starts
+   * the Authorization Code + PKCE flow — mint state/nonce/PKCE, stash them in
+   * the signed transaction cookie, and redirect to the IdP.
    */
   login = async (req: Request, res: Response) => {
     const providerId = req.params.provider as string;
-    const config = getProviderConfig(providerId);
-    if (!config) {
+    const fed = getFederatedProvider(providerId);
+    if (!fed) {
       return HttpResponser.errorJson(res, { message: 'Unknown provider' }, 404);
     }
+    if (fed.protocol === 'saml') {
+      return samlController.login(req, res);
+    }
+    const config = fed.config;
 
     try {
       const client = await getClient(providerId);

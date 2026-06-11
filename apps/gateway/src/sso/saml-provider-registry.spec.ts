@@ -114,6 +114,8 @@ describe('buildSamlRegistryFromEnv', () => {
     expect(cfg?.allowedDomains).toBeUndefined();
     expect(cfg?.logoutUrl).toBeUndefined();
     expect(cfg?.decryptionPvk).toBeUndefined();
+    expect(cfg?.forceAuthn).toBe(false);
+    expect(cfg?.disableRequestedAuthnContext).toBe(true);
   });
 
   it('honours every optional override', () => {
@@ -129,6 +131,8 @@ describe('buildSamlRegistryFromEnv', () => {
       SAML_ACME_ALLOWED_DOMAINS: ' @Acme.com , corp.io ',
       SAML_ACME_PERMISSION_MAP: 'admins:ADMIN;viewers:READ_SOME_ENTITY',
       SAML_ACME_DECRYPTION_PVK: 'test-placeholder-not-a-real-key',
+      SAML_ACME_FORCE_AUTHN: 'true',
+      SAML_ACME_DISABLE_REQUESTED_AUTHN_CONTEXT: 'false',
     });
     const cfg = reg.get('acme');
     expect(cfg?.issuer).toBe('https://app.example.com/saml/metadata');
@@ -144,6 +148,8 @@ describe('buildSamlRegistryFromEnv', () => {
       { claim: 'viewers', permissions: [Permission.READ_SOME_ENTITY] },
     ]);
     expect(cfg?.decryptionPvk).toBe('test-placeholder-not-a-real-key');
+    expect(cfg?.forceAuthn).toBe(true);
+    expect(cfg?.disableRequestedAuthnContext).toBe(false);
   });
 
   it.each(['IDP_ISSUER', 'IDP_CERT', 'CALLBACK_URL'] as const)(

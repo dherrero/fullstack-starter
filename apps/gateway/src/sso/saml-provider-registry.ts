@@ -256,6 +256,17 @@ export const buildSamlRegistryFromEnv = (
     const decryptionPvk =
       env[`SAML_${rawName}_DECRYPTION_PVK`]?.trim() || undefined;
 
+    // forceAuthn: explicit opt-in only (default false). Instructs the IdP to
+    // re-authenticate the user even when it has an active session.
+    const forceAuthn = env[`SAML_${rawName}_FORCE_AUTHN`] === 'true';
+
+    // disableRequestedAuthnContext: default true (omit the element) for
+    // maximum IdP compat. Set the env var to 'false' to include it.
+    const disableRequestedAuthnContextRaw =
+      env[`SAML_${rawName}_DISABLE_REQUESTED_AUTHN_CONTEXT`];
+    const disableRequestedAuthnContext =
+      disableRequestedAuthnContextRaw === 'false' ? false : true;
+
     samlRegistry.set(id, {
       id,
       displayName: env[`SAML_${rawName}_DISPLAY_NAME`]?.trim() || titleCase(id),
@@ -274,6 +285,8 @@ export const buildSamlRegistryFromEnv = (
       permissionMap,
       logoutUrl: logoutUrlRaw || undefined,
       decryptionPvk,
+      forceAuthn,
+      disableRequestedAuthnContext,
     });
   }
 
