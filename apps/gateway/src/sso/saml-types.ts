@@ -50,11 +50,16 @@ export interface SamlProviderConfig {
    */
   wantAssertionsSigned: true;
   /**
-   * Optional allowlist of email domains accepted from this IdP.
-   * When present, users whose email domain is not in the list are rejected
-   * after assertion validation, before local account resolution.
+   * MANDATORY allowlist of email domains accepted from this IdP (at least one
+   * entry). SAML assertions carry no per-assertion `email_verified` signal, so
+   * the gateway must stamp `emailVerified: true` for the API to resolve/link an
+   * account. This domain allowlist is therefore the ONLY cross-tenant trust
+   * boundary: it bounds which email identities a (signed) IdP may assert, and
+   * prevents a validly-signed assertion from claiming an arbitrary email that
+   * would auto-link to a pre-existing local or other-tenant account
+   * (account-takeover defense). Enforced fail-fast at boot.
    */
-  allowedDomains?: string[];
+  allowedDomains: string[];
   /** Name of the SAML attribute carrying the user's group/role memberships. */
   groupsAttribute: string;
   /** Name of the SAML attribute carrying the user's email address. */

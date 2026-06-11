@@ -45,6 +45,9 @@ const samlConfig = {
   permissionMap: [
     { claim: 'admins', permissions: [Permission.WRITE_SOME_ENTITY] },
   ],
+  // Mandatory domain allowlist — the ACS stamps emailVerified:true, so this is
+  // the cross-tenant account-takeover boundary.
+  allowedDomains: ['acme.com'],
   decryptionPvk: 'SUPER-SECRET-KEY-MATERIAL',
 };
 
@@ -94,6 +97,9 @@ const goodProfile = {
   email: 'user@acme.com',
   groups: ['admins'],
 };
+
+// samlConfig must declare the IdP issuer the ACS pins against.
+Object.assign(samlConfig, { idpIssuer: 'https://idp.acme.example/metadata' });
 
 describe('SamlController', () => {
   beforeEach(() => {
@@ -267,6 +273,17 @@ describe('SamlController', () => {
       const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
       await samlController.callback(mkReq(), res as never);
       expect(samlInstance.validatePostResponseAsync).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('rejects a response whose Issuer is a different IdP (mix-up)', async () => {
+      samlInstance.validatePostResponseAsync.mockResolvedValue({
+        profile: { ...goodProfile, issuer: 'https://evil-idp.example/meta' },
+        loggedOut: false,
+      });
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(ApiClient.resolveFederatedUser).not.toHaveBeenCalled();
       expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
     });
 

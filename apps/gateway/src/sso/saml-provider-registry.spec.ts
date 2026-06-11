@@ -77,6 +77,9 @@ const acme = {
   SAML_ACME_IDP_CERT: VALID_CERT,
   SAML_ACME_CALLBACK_URL:
     'https://app.example.com/api/v1/auth/sso/acme/callback',
+  // Mandatory: SAML stamps emailVerified:true, so a domain allowlist is the
+  // sole cross-tenant account-takeover boundary.
+  SAML_ACME_ALLOWED_DOMAINS: 'acme.example',
 };
 
 const oktaOidc = {
@@ -111,7 +114,7 @@ describe('buildSamlRegistryFromEnv', () => {
     expect(cfg?.signatureAlgorithm).toBe('sha256');
     expect(cfg?.wantAssertionsSigned).toBe(true);
     expect(cfg?.idpCertPems).toHaveLength(1);
-    expect(cfg?.allowedDomains).toBeUndefined();
+    expect(cfg?.allowedDomains).toEqual(['acme.example']);
     expect(cfg?.logoutUrl).toBeUndefined();
     expect(cfg?.decryptionPvk).toBeUndefined();
     expect(cfg?.forceAuthn).toBe(false);
@@ -152,16 +155,27 @@ describe('buildSamlRegistryFromEnv', () => {
     expect(cfg?.disableRequestedAuthnContext).toBe(false);
   });
 
-  it.each(['IDP_ISSUER', 'IDP_CERT', 'CALLBACK_URL'] as const)(
-    'fails fast when a declared provider is missing %s',
-    (key) => {
-      const env: NodeJS.ProcessEnv = { ...acme };
-      delete env[`SAML_ACME_${key}`];
-      expect(() => buildSamlRegistryFromEnv(env)).toThrow(
-        new RegExp(`missing required env SAML_ACME_${key}`),
-      );
-    },
-  );
+  it.each([
+    'IDP_ISSUER',
+    'IDP_CERT',
+    'CALLBACK_URL',
+    'ALLOWED_DOMAINS',
+  ] as const)('fails fast when a declared provider is missing %s', (key) => {
+    const env: NodeJS.ProcessEnv = { ...acme };
+    delete env[`SAML_ACME_${key}`];
+    expect(() => buildSamlRegistryFromEnv(env)).toThrow(
+      new RegExp(`missing required env SAML_ACME_${key}`),
+    );
+  });
+
+  it('fails fast when ALLOWED_DOMAINS is present but empty/whitespace', () => {
+    expect(() =>
+      buildSamlRegistryFromEnv({
+        ...acme,
+        SAML_ACME_ALLOWED_DOMAINS: ' , @ , ',
+      }),
+    ).toThrow(/missing required env SAML_ACME_ALLOWED_DOMAINS/);
+  });
 
   it('rejects an invalid signature algorithm (sha1 is disabled)', () => {
     expect(() =>

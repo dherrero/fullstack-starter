@@ -237,13 +237,23 @@ export const buildSamlRegistryFromEnv = (
     const signatureAlgorithm = sigAlgRaw as 'sha256' | 'sha512';
 
     // Allowed domains: CSV, lowercased, stripped of any leading `@`.
-    const allowedDomainsRaw = env[`SAML_${rawName}_ALLOWED_DOMAINS`]?.trim();
-    const allowedDomains: string[] | undefined = allowedDomainsRaw
-      ? allowedDomainsRaw
-          .split(',')
-          .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
-          .filter(Boolean)
-      : undefined;
+    // MANDATORY for SAML: the ACS stamps `emailVerified: true` (no per-assertion
+    // verified signal exists in SAML), so this allowlist is the sole boundary
+    // that stops a signed IdP from asserting an arbitrary email and auto-linking
+    // to a pre-existing/other-tenant account. Fail fast when absent or empty.
+    const allowedDomains = (
+      env[`SAML_${rawName}_ALLOWED_DOMAINS`]?.trim() ?? ''
+    )
+      .split(',')
+      .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
+      .filter(Boolean);
+    if (allowedDomains.length === 0) {
+      throw new Error(
+        `SAML provider "${id}" is missing required env SAML_${rawName}_ALLOWED_DOMAINS. ` +
+          `At least one email domain must be allowlisted: SAML assertions are trusted as ` +
+          `email-verified, so this list is the only cross-tenant account-takeover boundary.`,
+      );
+    }
 
     // Permission map — reuse the shared parser (throws on malformed input).
     const permissionMap: ClaimPermissionMapping[] = parsePermissionMap(

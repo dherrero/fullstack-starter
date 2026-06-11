@@ -145,6 +145,16 @@ class SamlController {
       if (loggedOut || !profile)
         throw new Error('SAML: no profile in response');
 
+      // Issuer pin (mix-up defense). node-saml's `idpIssuer` option is only
+      // enforced on LogoutRequest/LogoutResponse, NOT on the login Response —
+      // so we MUST check the asserted issuer here, otherwise a response signed
+      // by a *different* configured IdP would be accepted for this provider.
+      if (profile.issuer !== config.idpIssuer) {
+        throw new Error(
+          'SAML: response Issuer does not match the configured IdP',
+        );
+      }
+
       // InResponseTo ⇄ transaction binding (on top of node-saml's own cache).
       if (profile.inResponseTo !== tx.requestId) {
         throw new Error('SAML: InResponseTo does not match the transaction');
@@ -172,12 +182,16 @@ class SamlController {
       }
 
       // Cross-tenant containment: an IdP may only assert emails inside its
-      // configured domain allowlist.
-      if (config.allowedDomains?.length) {
-        const domain = email.slice(email.lastIndexOf('@') + 1);
-        if (!config.allowedDomains.includes(domain)) {
-          throw new Error('SAML: asserted email domain is not allowed');
-        }
+      // configured domain allowlist. This is MANDATORY (the registry fails fast
+      // when it is absent) because the ACS stamps `emailVerified: true` below —
+      // without this gate a signed assertion could claim an arbitrary email and
+      // auto-link to a pre-existing/other-tenant account (account takeover).
+      const domain = email.slice(email.lastIndexOf('@') + 1);
+      if (
+        !config.allowedDomains.length ||
+        !config.allowedDomains.includes(domain)
+      ) {
+        throw new Error('SAML: asserted email domain is not allowed');
       }
 
       const suggestedPermissions = mapGroupsToPermissions(
