@@ -9,11 +9,30 @@ vi.mock('@gateway/sso/saml-client', () => ({
 }));
 vi.mock('@gateway/sso/saml-transaction.service', () => ({
   setSamlTransactionCookie: vi.fn(),
+  readSamlTransaction: vi.fn(),
+  clearSamlTransactionCookie: vi.fn(),
+}));
+vi.mock('@gateway/sso/saml-logout.service', () => ({
+  setSamlLogoutHintCookie: vi.fn(),
+}));
+vi.mock('@gateway/clients/api.client', () => ({
+  ApiClient: { resolveFederatedUser: vi.fn() },
+}));
+vi.mock('@gateway/middleware/auth.middleware', () => ({
+  respondWithTokens: vi.fn(),
 }));
 
+import { Permission } from '@dto';
+import { ApiClient } from '@gateway/clients/api.client';
+import { respondWithTokens } from '@gateway/middleware/auth.middleware';
 import { getFederatedProvider } from '@gateway/sso/federated-registry';
 import { getSamlClient } from '@gateway/sso/saml-client';
-import { setSamlTransactionCookie } from '@gateway/sso/saml-transaction.service';
+import { setSamlLogoutHintCookie } from '@gateway/sso/saml-logout.service';
+import {
+  clearSamlTransactionCookie,
+  readSamlTransaction,
+  setSamlTransactionCookie,
+} from '@gateway/sso/saml-transaction.service';
 import samlController from './saml.controller';
 
 const samlConfig = {
@@ -21,8 +40,16 @@ const samlConfig = {
   displayName: 'Acme',
   entryPoint: 'https://idp.acme.example/sso',
   issuer: 'https://app.example.com',
+  emailAttribute: 'email',
+  groupsAttribute: 'groups',
+  permissionMap: [
+    { claim: 'admins', permissions: [Permission.WRITE_SOME_ENTITY] },
+  ],
   decryptionPvk: 'SUPER-SECRET-KEY-MATERIAL',
 };
+
+const PERSISTENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent';
+const TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient';
 
 const mkRes = () => {
   const res = {} as Record<string, ReturnType<typeof vi.fn>>;
@@ -42,6 +69,23 @@ const samlInstance = {
   generateServiceProviderMetadata: vi.fn(
     () => '<EntityDescriptor entityID="https://app.example.com"/>',
   ),
+  validatePostResponseAsync: vi.fn(),
+};
+
+const goodTx = {
+  provider: 'acme',
+  requestId: '_feedfacefeedfacefeedfacefeedface',
+  returnTo: '/dashboard',
+};
+
+const goodProfile = {
+  issuer: 'https://idp.acme.example/metadata',
+  nameID: 'persistent-subject-123',
+  nameIDFormat: PERSISTENT,
+  inResponseTo: goodTx.requestId,
+  sessionIndex: 'sess-1',
+  email: 'user@acme.com',
+  groups: ['admins'],
 };
 
 describe('SamlController', () => {
@@ -143,6 +187,205 @@ describe('SamlController', () => {
         res as never,
       );
       expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+  });
+
+  describe('callback (ACS)', () => {
+    const mkReq = (body = { SAMLResponse: 'b64' }) =>
+      ({ params: { provider: 'acme' }, body }) as never;
+
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      vi.mocked(readSamlTransaction).mockReturnValue(goodTx);
+      samlInstance.validatePostResponseAsync.mockResolvedValue({
+        profile: { ...goodProfile },
+        loggedOut: false,
+      });
+      vi.mocked(ApiClient.resolveFederatedUser).mockResolvedValue({
+        id: 7,
+        email: 'user@acme.com',
+        permissions: [Permission.READ_SOME_ENTITY],
+      } as never);
+    });
+
+    it('happy path: validates, resolves, issues tokens, sets SLO hint, redirects', async () => {
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+
+      expect(clearSamlTransactionCookie).toHaveBeenCalled(); // single-use
+      expect(ApiClient.resolveFederatedUser).toHaveBeenCalledWith(
+        {
+          provider: 'acme',
+          subject: 'persistent-subject-123',
+          email: 'user@acme.com',
+          emailVerified: true,
+          suggestedPermissions: [Permission.WRITE_SOME_ENTITY],
+        },
+        expect.any(String),
+      );
+      expect(respondWithTokens).toHaveBeenCalledWith(
+        expect.anything(),
+        {
+          id: 7,
+          email: 'user@acme.com',
+          permissions: [Permission.READ_SOME_ENTITY],
+        },
+        expect.objectContaining({ issueRefreshCookie: true }),
+      );
+      expect(setSamlLogoutHintCookie).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          provider: 'acme',
+          nameId: 'persistent-subject-123',
+          sessionIndex: 'sess-1',
+        }),
+      );
+      expect(res.redirect).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('rejects without a transaction cookie (IdP-initiated blocked)', async () => {
+      vi.mocked(readSamlTransaction).mockReturnValue(null);
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(samlInstance.validatePostResponseAsync).not.toHaveBeenCalled();
+      expect(ApiClient.resolveFederatedUser).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('rejects a transaction bound to a different provider (mix-up)', async () => {
+      vi.mocked(readSamlTransaction).mockReturnValue({
+        ...goodTx,
+        provider: 'other',
+      });
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(samlInstance.validatePostResponseAsync).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('rejects an InResponseTo that does not match the transaction', async () => {
+      samlInstance.validatePostResponseAsync.mockResolvedValue({
+        profile: { ...goodProfile, inResponseTo: '_someoneelses' },
+        loggedOut: false,
+      });
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(ApiClient.resolveFederatedUser).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('rejects a transient NameID (unstable identifier)', async () => {
+      samlInstance.validatePostResponseAsync.mockResolvedValue({
+        profile: { ...goodProfile, nameIDFormat: TRANSIENT },
+        loggedOut: false,
+      });
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(ApiClient.resolveFederatedUser).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('rejects an invalid signature (validate throws) without leaking detail', async () => {
+      samlInstance.validatePostResponseAsync.mockRejectedValue(
+        new Error('Invalid signature <xml>secret</xml>'),
+      );
+      const res = mkRes() as never as {
+        redirect: ReturnType<typeof vi.fn>;
+        json: ReturnType<typeof vi.fn>;
+      };
+      await samlController.callback(mkReq(), res as never);
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+      expect(res.json).not.toHaveBeenCalled();
+    });
+
+    it('rejects an email outside the domain allowlist (cross-tenant containment)', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: { ...samlConfig, allowedDomains: ['acme.com'] },
+      } as never);
+      samlInstance.validatePostResponseAsync.mockResolvedValue({
+        profile: { ...goodProfile, email: 'victim@othertenant.com' },
+        loggedOut: false,
+      });
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(ApiClient.resolveFederatedUser).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('accepts an allowlisted email and rejects malformed/hostile emails', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: { ...samlConfig, allowedDomains: ['acme.com'] },
+      } as never);
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(res.redirect).toHaveBeenCalledWith('/dashboard');
+
+      for (const email of ['not-an-email', 'a@b<script>.com', '']) {
+        vi.mocked(ApiClient.resolveFederatedUser).mockClear();
+        samlInstance.validatePostResponseAsync.mockResolvedValue({
+          profile: { ...goodProfile, email },
+          loggedOut: false,
+        });
+        const res2 = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+        await samlController.callback(mkReq(), res2 as never);
+        expect(ApiClient.resolveFederatedUser).not.toHaveBeenCalled();
+        expect(res2.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+      }
+    });
+
+    it('falls back to the NameID as email only for the emailAddress format', async () => {
+      samlInstance.validatePostResponseAsync.mockResolvedValue({
+        profile: {
+          ...goodProfile,
+          email: undefined,
+          nameID: 'User@Acme.com',
+          nameIDFormat:
+            'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+        },
+        loggedOut: false,
+      });
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(ApiClient.resolveFederatedUser).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'user@acme.com' }),
+        expect.any(String),
+      );
+      expect(res.redirect).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('issues no half-session when the api resolve fails', async () => {
+      vi.mocked(ApiClient.resolveFederatedUser).mockRejectedValue(
+        new Error('api down'),
+      );
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(respondWithTokens).not.toHaveBeenCalled();
+      expect(setSamlLogoutHintCookie).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('404s for an unknown provider', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue(undefined);
+      const res = mkRes() as never as { status: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('sets no SLO hint when token issuance itself fails', async () => {
+      vi.mocked(respondWithTokens).mockRejectedValueOnce(new Error('boom'));
+      const res = mkRes() as never as { redirect: ReturnType<typeof vi.fn> };
+      await samlController.callback(mkReq(), res as never);
+      expect(setSamlLogoutHintCookie).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/login?sso_error=1');
+    });
+
+    it('clears the transaction cookie even on rejection paths (single-use)', async () => {
+      vi.mocked(readSamlTransaction).mockReturnValue(null);
+      const res = mkRes();
+      await samlController.callback(mkReq(), res);
+      expect(clearSamlTransactionCookie).toHaveBeenCalledWith(res);
     });
   });
 

@@ -1,6 +1,6 @@
 import samlController from '@gateway/controllers/saml.controller';
 import ssoController from '@gateway/controllers/sso.controller';
-import { Router } from 'express';
+import express, { Router } from 'express';
 
 // All routes here inherit the coarse per-IP authRateLimiter mounted on the
 // auth router (see auth.routes.ts) — including SAML login/metadata.
@@ -18,6 +18,17 @@ ssoRouter.get('/logout', ssoController.logout);
 // inside the controller (no arbitrary providers).
 ssoRouter.get('/:provider/login', ssoController.login);
 ssoRouter.get('/:provider/callback', ssoController.callback);
+
+// SAML Assertion Consumer Service (HTTP-POST binding). The urlencoded parser
+// is mounted ONLY here, with an explicit cap (encrypted responses grow, but
+// 256kb bounds XML-bomb/DoS payloads). The route is necessarily exempt from
+// cookie-based CSRF (it is a cross-site POST from the IdP) — protection comes
+// from the signed single-use transaction cookie + InResponseTo binding.
+ssoRouter.post(
+  '/:provider/callback',
+  express.urlencoded({ extended: false, limit: '256kb' }),
+  samlController.callback,
+);
 
 // SAML SP metadata for IdP onboarding. Public by design: entityID, ACS URL
 // and NameID format only — never secrets or private keys.
