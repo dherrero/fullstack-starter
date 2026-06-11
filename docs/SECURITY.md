@@ -269,3 +269,131 @@ browser ──/auth/sso/:p/callback──▶ gateway
 3. Configurá `SSO_STATE_SECRET` (secreto dedicado en producción).
 4. `<NAME>` (en minúsculas) es el id del proveedor. El front pinta un botón por
    proveedor desde `GET /api/v1/auth/sso/providers` (solo metadatos públicos).
+
+## Federación SAML 2.0 (tenants legacy)
+
+Para IdPs corporativos que no hablan OIDC (ADFS, Shibboleth, Okta-SAML,
+Azure AD SAML), el gateway actúa como **Service Provider (SP) SAML 2.0**,
+**solo SP-initiated**. Termina en **la misma sesión local** que OIDC/local
+(access JWT + cookie refresh con familia/rotación); el API sigue confiando
+**solo** en el JWT interno EdDSA y nunca habla con el IdP. Sin proveedores
+`SAML_*` configurados, SAML está desactivado y nada cambia. Núcleo
+criptográfico: `@node-saml/node-saml` (con `xml-crypto`), endurecido en
+`apps/gateway/src/sso/saml-client.ts`.
+
+### Flujo (SP-initiated)
+
+```
+browser ──/auth/sso/:p/login──▶ gateway  (AuthnRequest id CSPRNG + returnTo
+   │                                │      → cookie tx firmada; RelayState vacío)
+   ▼                                │ 302 (HTTP-Redirect, SAMLRequest deflate+b64)
+  IdP  ◀── entryPoint (SSO URL) ────┘
+   │ login del usuario
+   ▼ 302 / auto-POST con SAMLResponse
+browser ──POST /auth/sso/:p/callback──▶ gateway (ACS, HTTP-POST binding)
+                                    │ tx cookie single-use atada al provider
+                                    │ node-saml: firma de Response Y Assertion
+                                    │   contra cert(s) PINNED del registry,
+                                    │   Status, Conditions/skew, AudienceRestriction
+                                    │ controller: Issuer==idpIssuer (mix-up),
+                                    │   InResponseTo==tx.requestId, NameID estable,
+                                    │   email plausible ∈ allowedDomains
+                                    │ grupos→permisos (sugerencia)
+                                    │ ApiClient.resolveFederatedUser → usuario local
+                                    │ respondWithTokens (sesión local estándar)
+                                    ▼ 302 a returnTo (de la cookie, allowlist same-site)
+```
+
+Metadata del SP para el onboarding del IdP:
+`GET /api/v1/auth/sso/:p/metadata` (`application/samlmetadata+xml`, público,
+sin material privado).
+
+### Modelo de amenazas y decisiones
+
+- **Solo SP-initiated**: el ACS **exige** la cookie de transacción firmada y
+  que `InResponseTo` case con el `AuthnRequest` id que la inició. Una Response
+  sin transacción (IdP-initiated) se rechaza por diseño — cierra CSRF en una
+  ruta que es necesariamente exenta de CSRF por cookie, y bloquea respuestas no
+  solicitadas.
+- **Firma exigida en Response Y Assertion** (`wantAuthnResponseSigned` +
+  `wantAssertionsSigned`, ambos literal `true`, no relajables por env), validada
+  **solo** contra los certificados pinned del registry — **nunca** contra certs
+  embebidos en la propia respuesta (trust bypass).
+- **Anti-XSW (XML Signature Wrapping)**: node-saml valida el nodo firmado
+  correcto; el e2e inyecta una aserción forjada junto a la firmada y exige
+  rechazo.
+- **Anti-XXE**: el parser de `@xmldom/xmldom` no resuelve entidades externas.
+- **NameID persistente** (o `emailAddress`); **`transient` se rechaza** — el par
+  `(provider, subject)` debe ser estable para keyear la cuenta. `unspecified`
+  también se rechaza (allowlist fail-closed).
+- **Comment injection en NameID** (clase CVE-2017-11427): mitigado por la
+  versión de `xml-crypto`/node-saml; el e2e prueba que `a@corp.com<!--x-->.evil`
+  no resuelve a una identidad distinta de la firmada.
+- **Replay**: cookie de transacción single-use (leída y borrada en todo camino)
+  - `validateInResponseTo: always` con caché acotada + re-chequeo de
+    `NotOnOrAfter` con skew ≤30s.
+- **Mix-up multi-IdP**: el `Issuer` de la Response debe ser exactamente el
+  `idpIssuer` configurado del proveedor (chequeo explícito en el controller:
+  node-saml solo aplica `idpIssuer` a mensajes de logout, no a la Response de
+  login). Cada proveedor tiene su propio cert pinned.
+- **AudienceRestriction** == entityID del SP (una aserción dirigida a otro SP se
+  rechaza).
+- **Account takeover / cross-tenant**: SAML no transporta una señal
+  `email_verified` por aserción, así que el ACS sella `emailVerified: true` (el
+  IdP del tenant es autoritativo para su dominio y lo configura el operador). Por
+  eso **`SAML_<NAME>_ALLOWED_DOMAINS` es OBLIGATORIO** (fail-fast al arranque si
+  falta): es el **único cerco** que impide que una aserción firmada asevere un
+  email arbitrario y se auto-vincule a una cuenta local/de otro tenant
+  preexistente. El email asertado debe estar dentro del allowlist o se rechaza.
+- **Escalada por atributo de grupos**: `mapGroupsToPermissions` es solo
+  _sugerencia_; el API aplica suelo de privilegio, **nunca** concede ADMIN por
+  federación y no muta los permisos de una cuenta viva.
+- **RelayState nunca se usa para el redirect final**: el `returnTo` viaja solo
+  en la cookie firmada y se re-valida con `safeReturnTo` (same-site; se rechazan
+  absolutas, `//`, `\\`, control). El e2e prueba que un `RelayState` externo no
+  se sigue.
+- **SSRF** en `entryPoint`/`logoutUrl`: solo `https`, con bloqueo de
+  loopback/link-local/metadata (169.254.169.254)/RFC1918 (mismo guard que OIDC);
+  el bloqueo de metadata/`0.0.0.0` es incondicional incluso con
+  `SSO_ALLOW_INSECURE_ISSUERS` (escape hatch solo-dev para loopback/RFC1918).
+- **Certificados**: el registry rechaza al arranque certs caducados, RSA <2048
+  bits y `sha1`; avisa si expiran en <30 días. Rotación sin downtime con
+  multi-cert (separador `;`). Las claves/certs y `_DECRYPTION_PVK` nunca aparecen
+  en logs, errores, metadata ni respuestas públicas.
+- **Sin fuga de errores/IdP**: el ACS jamás refleja `StatusMessage`/XML del IdP;
+  redirect genérico `/login?sso_error=1`; log interno con `requestId`, control
+  chars eliminados y truncado.
+- **SLO best-effort**: el logout **siempre** revoca la familia de refresh local
+  y limpia cookies **antes** de cualquier ida al IdP (un IdP caído nunca mantiene
+  viva la sesión). Si el proveedor tiene `_LOGOUT_URL` se emite un
+  `LogoutRequest` (HTTP-Redirect) con el `NameID`+`SessionIndex` del hint firmado
+  (cookie HttpOnly). El `LogoutResponse` se valida best-effort y cualquier fallo
+  se ignora: para cuando el IdP nos devuelve, la sesión local ya está revocada,
+  así que un `LogoutResponse` falsificado no produce cambio de estado.
+- **SLO IdP-initiated FUERA DE ALCANCE** en esta iteración (espejo del
+  back-channel logout de OIDC). Riesgo residual: si el logout se origina en el
+  IdP, la sesión local sigue viva hasta que expire/rote el refresh. El
+  `LogoutRequest` SP→IdP es **sin firmar** (el starter no gestiona clave privada
+  del SP); documentado y aceptado.
+
+### Alta de un IdP SAML legacy
+
+1. **Onboarding del IdP**: pasale la metadata del SP
+   (`GET /api/v1/auth/sso/<name>/metadata`) o, a mano: entityID = SP issuer,
+   **ACS exacto** (sin comodines)
+   `https://<tu-dominio>/api/v1/auth/sso/<name>/callback`, NameIDFormat
+   `persistent`.
+2. **Configurá en el entorno del gateway** (ver `.env.example`, bloque
+   `SAML_<NAME>_*`): `_ENTRY_POINT` (SSO URL del IdP), `_IDP_ISSUER` (entityID
+   del IdP), `_IDP_CERT` (PEM x509 público del IdP; multi-cert con `;` para
+   rotación), `_CALLBACK_URL` (ACS exacto) y **`_ALLOWED_DOMAINS` (obligatorio)**.
+   Opcionales: `_SP_ISSUER`, `_EMAIL_ATTRIBUTE`, `_GROUPS_ATTRIBUTE`,
+   `_PERMISSION_MAP`, `_LOGOUT_URL`, `_SIGNATURE_ALGORITHM` (sha256|sha512),
+   `_DECRYPTION_PVK`, `_FORCE_AUTHN`, `_DISABLE_REQUESTED_AUTHN_CONTEXT`,
+   `_DISPLAY_NAME`, `_ICON_KEY`.
+3. **Rotación de certificados**: durante el solape, poné ambos PEM en `_IDP_CERT`
+   separados por `;`; la validación acepta cualquiera de la lista. Quitá el viejo
+   tras la rotación.
+4. `<NAME>` (en minúsculas) es el id del proveedor (clave en
+   `federated_identity.provider`; no puede colisionar con un id OIDC). El front
+   pinta un botón por proveedor desde `GET /api/v1/auth/sso/providers`.

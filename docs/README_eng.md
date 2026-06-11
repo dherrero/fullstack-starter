@@ -738,7 +738,7 @@ In production, apply the SQL manually against the database.
 ### Roadmap
 
 - [x] SSO/OIDC in the gateway for enterprise customers (Okta, Azure AD, Auth0) — see [docs/SECURITY.md → Federación OIDC](SECURITY.md#federación-oidc-sso-okta--azure-ad--auth0)
-- [ ] SAML for legacy tenants
+- [x] SAML 2.0 for legacy tenants — see [docs/SECURITY.md → Federación SAML 2.0](SECURITY.md#federación-saml-20-tenants-legacy)
 - [ ] SCIM 2.0 for bulk provisioning
 - [ ] Multi-tenant CRUDs
 - [ ] Complete e2e tests (Playwright)
