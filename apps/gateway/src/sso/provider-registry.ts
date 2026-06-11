@@ -1,9 +1,11 @@
-import { ClaimPermissionMapping, Permission, SsoProviderPublicDTO } from '@dto';
+import { ClaimPermissionMapping, Permission } from '@dto';
+// SsoProviderPublicDTO intentionally not imported here — the unified public
+// surface lives in federated-registry.ts, which owns listPublicProviders().
 
 /**
  * Full, secret-bearing configuration of one OIDC provider. Lives ONLY in the
- * gateway — never serialised to the client. Use {@link listPublicProviders}
- * for anything the browser may see.
+ * gateway — never serialised to the client. Use the federated registry's
+ * `listPublicProviders` for anything the browser may see.
  */
 export interface SsoProviderConfig {
   /** Lowercased provider key, used in `/auth/sso/:id/login`. */
@@ -23,47 +25,105 @@ export interface SsoProviderConfig {
 
 const ENV_PREFIX = /^SSO_(.+)_ISSUER$/;
 
-// Hosts that must never be reachable as an issuer: loopback, link-local
-// (incl. the 169.254.169.254 cloud metadata endpoint), and RFC1918 ranges.
-// SSRF defense — an attacker-influenced issuer must not pivot to internal hosts.
-const isBlockedHost = (host: string): boolean => {
-  const h = host.replace(/^\[|\]$/g, '').toLowerCase();
-  if (h === 'localhost' || h === '0.0.0.0' || h === '::1') return true;
+// SSRF defense, two tiers:
+// - ALWAYS blocked, even with the dev escape-hatch: link-local (incl. the
+//   169.254.169.254 cloud metadata endpoint) and 0.0.0.0/"this host". There is
+//   no legitimate federation scenario — dev included — pointing at those.
+// - Blocked unless the dev escape-hatch is active: loopback and RFC1918
+//   ranges. Dev setups legitimately run the IdP on localhost or a private
+//   docker network; production must never set SSO_ALLOW_INSECURE_ISSUERS.
+const parseIpv4 = (h: string): [number, number] | null => {
   const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (!ipv4) return false;
-  const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
-  if (a === 127 || a === 10 || a === 0) return true; // loopback / private / this-host
+  return ipv4 ? [Number(ipv4[1]), Number(ipv4[2])] : null;
+};
+
+const isAlwaysBlockedHost = (host: string): boolean => {
+  const h = host.replace(/^\[|\]$/g, '').toLowerCase();
+  if (h === '0.0.0.0') return true;
+  const ip = parseIpv4(h);
+  if (!ip) return false;
+  const [a, b] = ip;
+  if (a === 0) return true; // "this host"
   if (a === 169 && b === 254) return true; // link-local + cloud metadata
+  return false;
+};
+
+const isPrivateHost = (host: string): boolean => {
+  const h = host.replace(/^\[|\]$/g, '').toLowerCase();
+  if (h === 'localhost' || h === '::1') return true;
+  const ip = parseIpv4(h);
+  if (!ip) return false;
+  const [a, b] = ip;
+  if (a === 127 || a === 10) return true; // loopback / private
   if (a === 192 && b === 168) return true; // private
   if (a === 172 && b >= 16 && b <= 31) return true; // private
   return false;
 };
 
-const assertSafeIssuer = (
+/**
+ * SSRF guard for any federation URL (OIDC issuer, SAML entryPoint, logoutUrl…).
+ * Enforces https and blocks loopback/RFC1918 destinations, except when the dev
+ * escape-hatch (`SSO_ALLOW_INSECURE_ISSUERS=true`) is active — dev setups run
+ * IdPs on localhost/private networks. Link-local (cloud metadata) and 0.0.0.0
+ * are blocked UNCONDITIONALLY: the escape hatch never opens those.
+ *
+ * @param providerId  Provider id included in error messages (never the URL value).
+ * @param url         The URL to validate.
+ * @param allowInsecure  Set to true only in dev (`SSO_ALLOW_INSECURE_ISSUERS=true`).
+ * @param label       Human-readable field name for the error message (e.g. "issuer",
+ *                    "entryPoint", "logoutUrl").
+ */
+export const assertSafeFederationUrl = (
   providerId: string,
-  issuer: string,
+  url: string,
   allowInsecure: boolean,
+  label = 'url',
 ): void => {
-  let url: URL;
+  let parsed: URL;
   try {
-    url = new URL(issuer);
+    parsed = new URL(url);
   } catch {
-    throw new Error(`SSO provider "${providerId}" has a malformed issuer URL`);
-  }
-  if (url.protocol !== 'https:') {
-    if (allowInsecure && url.protocol === 'http:') return;
     throw new Error(
-      `SSO provider "${providerId}" issuer must use https (got ${url.protocol})`,
+      `SSO provider "${providerId}" has a malformed ${label} URL`,
     );
   }
-  if (!allowInsecure && isBlockedHost(url.hostname)) {
+  // Tier 1 — unconditional: cloud-metadata/link-local/0.0.0.0 are never a
+  // legitimate federation target, not even in dev.
+  if (isAlwaysBlockedHost(parsed.hostname)) {
     throw new Error(
-      `SSO provider "${providerId}" issuer host is not allowed (loopback/link-local/private)`,
+      `SSO provider "${providerId}" ${label} host is not allowed (link-local/metadata)`,
+    );
+  }
+  if (parsed.protocol !== 'https:') {
+    if (allowInsecure && parsed.protocol === 'http:') return;
+    throw new Error(
+      `SSO provider "${providerId}" ${label} must use https (got ${parsed.protocol})`,
+    );
+  }
+  // Tier 2 — loopback/RFC1918: blocked unless the explicit dev escape hatch.
+  if (!allowInsecure && isPrivateHost(parsed.hostname)) {
+    throw new Error(
+      `SSO provider "${providerId}" ${label} host is not allowed (loopback/link-local/private)`,
     );
   }
 };
 
-const parsePermissionMap = (
+// Internal alias kept for backward-compatibility within this module.
+const assertSafeIssuer = (
+  providerId: string,
+  issuer: string,
+  allowInsecure: boolean,
+): void => assertSafeFederationUrl(providerId, issuer, allowInsecure, 'issuer');
+
+/**
+ * Parses a raw permission-map string (`claim:PERM1,PERM2;…`) into structured
+ * mappings. Unknown permissions and malformed entries are a fatal misconfiguration
+ * — this function throws so they are caught at boot, never granted silently.
+ *
+ * @param providerId  Included in error messages; must not contain secret material.
+ * @param raw         The raw env-var value, or `undefined` when the var is absent.
+ */
+export const parsePermissionMap = (
   providerId: string,
   raw: string | undefined,
 ): ClaimPermissionMapping[] => {
@@ -182,11 +242,3 @@ export const getProviderConfig = (id: string): SsoProviderConfig | undefined =>
   registry().get(id);
 
 export const isSsoEnabled = (): boolean => registry().size > 0;
-
-/** Secret-free provider metadata for the browser (login buttons). */
-export const listPublicProviders = (): SsoProviderPublicDTO[] =>
-  getAllProviderConfigs().map(({ id, displayName, iconKey }) => ({
-    id,
-    displayName,
-    iconKey,
-  }));

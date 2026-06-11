@@ -3,6 +3,8 @@ import { Permission } from '@dto';
 
 vi.mock('@gateway/sso/provider-registry', () => ({
   getProviderConfig: vi.fn(),
+}));
+vi.mock('@gateway/sso/federated-registry', () => ({
   listPublicProviders: vi.fn(),
 }));
 vi.mock('@gateway/sso/discovery', () => ({ getClient: vi.fn() }));
@@ -35,10 +37,8 @@ vi.mock('openid-client', () => ({
   },
 }));
 
-import {
-  getProviderConfig,
-  listPublicProviders,
-} from '@gateway/sso/provider-registry';
+import { getProviderConfig } from '@gateway/sso/provider-registry';
+import { listPublicProviders } from '@gateway/sso/federated-registry';
 import { getClient } from '@gateway/sso/discovery';
 import { ApiClient } from '@gateway/clients/api.client';
 import {

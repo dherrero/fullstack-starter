@@ -12,10 +12,8 @@ import {
   readLogoutHint,
   setLogoutHintCookie,
 } from '@gateway/sso/sso-logout.service';
-import {
-  getProviderConfig,
-  listPublicProviders,
-} from '@gateway/sso/provider-registry';
+import { getProviderConfig } from '@gateway/sso/provider-registry';
+import { listPublicProviders } from '@gateway/sso/federated-registry';
 import {
   clearTransactionCookie,
   readTransaction,
