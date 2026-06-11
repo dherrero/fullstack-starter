@@ -1,6 +1,12 @@
 import { CreationOptional, Permission } from './rest-dto';
 
 /**
+ * Federation protocol implemented by an SSO provider.
+ * Strict literal union — never widen to `string`.
+ */
+export type SsoProtocol = 'oidc' | 'saml';
+
+/**
  * Mirrors the `federated_identity` table.
  * `subject` is the IdP-issued opaque identifier — it is internal and must not
  * be forwarded to the frontend.
@@ -19,14 +25,18 @@ export interface FederatedIdentityDTO {
 
 /**
  * Public metadata the frontend needs to render login buttons.
- * MUST NOT contain `clientSecret`, `issuer` internals, raw IdP claims,
- * `subject`, or any other secret/internal field.
+ * MUST NOT contain `clientSecret`, `issuer` internals, IdP URLs, certificates,
+ * entityIDs, raw IdP claims, `subject`, or any other secret/internal field.
  * `id` is the provider key used in the login URL `/auth/sso/:id/login`.
+ * `protocol` indicates the federation protocol; defaults to `'oidc'` when absent
+ * so existing clients that do not read the field continue to work correctly.
  */
 export interface SsoProviderPublicDTO {
   id: string;
   displayName: string;
   iconKey?: string;
+  /** Federation protocol of the provider. Defaults to 'oidc' when absent. */
+  protocol?: SsoProtocol;
 }
 
 /**
