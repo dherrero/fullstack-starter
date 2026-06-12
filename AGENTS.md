@@ -200,5 +200,10 @@ These are the cross-cutting invariants. Layer-specific rules live in each packag
   The scripts encode the right flags, configs and order; raw tooling drifts from
   them. If a needed task has no script, add one to `package.json` rather than
   documenting a bare command.
+- **Never regenerate `package-lock.json` wholesale** (`npm install` with a stale
+  `node_modules` can silently drop the peer-installed `@rspack/core` subtree, which
+  breaks `npm ci` in CI with `EUSAGE`). When adding a dependency, keep the lockfile
+  diff limited to the new package's entries, and validate with `npm run verify:lock`
+  (a dry-run `npm ci`) before pushing.
 - When you implement or change something significant, update the relevant `AGENTS.md`
   in the same change so it stays accurate.

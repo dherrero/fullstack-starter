@@ -44,6 +44,7 @@
     "format:gateway": "prettier --write \"apps/gateway/**/*.{ts,js,json}\"",
     "format:libs": "prettier --write \"libs/**/*.{ts,js,json}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,html,scss,css,md}\"",
+    "verify:lock": "npm ci --dry-run",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:front": "vitest run --config apps/front/vitest.config.mts",
