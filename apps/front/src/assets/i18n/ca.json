@@ -26,7 +26,8 @@
     "sso": {
       "or": "o continua amb",
       "continueWith": "Continua amb {{provider}}",
-      "error": "L'inici de sessió únic ha fallat. Torna-ho a provar."
+      "error": "L'inici de sessió únic ha fallat. Torna-ho a provar.",
+      "samlBadge": "SSO Empresarial"
     }
   },
   "unauthorized": {

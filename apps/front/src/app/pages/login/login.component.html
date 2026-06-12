@@ -102,7 +102,13 @@
                   type="button"
                   class="btn btn-outline-secondary w-100 mb-2"
                   (click)="loginWithSso(provider.id)"
+                  [attr.data-testid]="'sso-btn-' + provider.id"
                 >
+                  @if (!provider.iconKey && provider.protocol === 'saml') {
+                    <span class="visually-hidden" data-testid="saml-badge">{{
+                      'login.sso.samlBadge' | transloco
+                    }}</span>
+                  }
                   {{
                     'login.sso.continueWith'
                       | transloco: { provider: provider.displayName }

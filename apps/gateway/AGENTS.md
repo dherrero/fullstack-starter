@@ -31,6 +31,26 @@ the internal API on the same private network.
    migrating the monorepo to `moduleResolution: nodenext`. Full design & threat
    model: `docs/SECURITY.md` → "Federación OIDC". With zero providers configured
    the gateway behaves exactly as before.
+5. **SAML 2.0 Service Provider (SSO)** (`src/sso/saml-*.ts`,
+   `src/controllers/saml.controller.ts`): optional **SP-initiated** federated
+   login for legacy IdPs (ADFS/Shibboleth/Okta-SAML/Azure-SAML), via
+   `@node-saml/node-saml`. The OIDC routes dispatch by `protocol` through the
+   **federated registry** (`src/sso/federated-registry.ts`), so login/logout
+   share the OIDC paths; SAML adds `POST /:provider/callback` (ACS, route-scoped
+   `urlencoded` parser, 256 KB cap), `GET /:provider/metadata` (public SP
+   metadata, no private material) and `GET|POST /:provider/logout/callback`
+   (SLO). It **reuses** the OIDC `/internal/federated/resolve` endpoint (scope
+   `FEDERATED_IDENTITY`) with `provider`=id and `subject`=NameID, and issues the
+   **same** local session via `respondWithTokens`. Hardening that must NOT be
+   relaxed: `wantAssertionsSigned` + `wantAuthnResponseSigned` (both literal
+   `true`), `validateInResponseTo: always` (IdP-initiated rejected by design),
+   audience pinned to the SP entityID, `Issuer` pinned to `idpIssuer` (mix-up),
+   signatures verified only against the registry's pinned certs, `transient`
+   NameID rejected, and **`SAML_<NAME>_ALLOWED_DOMAINS` is mandatory** (the ACS
+   stamps `emailVerified: true`, so the domain allowlist is the sole
+   cross-tenant account-takeover boundary). Full threat model:
+   `docs/SECURITY.md` → "Federación SAML 2.0". Zero `SAML_*` providers → SAML
+   disabled, no behavior change.
 
 ## Request flow (must stay intact)
 
@@ -66,16 +86,17 @@ browser ──/api/*──▶ nginx ──proxy_pass──▶ gateway
 
 ## Env vars
 
-| Var                          | Purpose                                                                                                   |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `GATEWAY_PORT`               | Listen port (default 3100)                                                                                |
-| `API_BASE_URL`               | Upstream API base (default `http://api:3200`)                                                             |
-| `INTERNAL_JWT_PRIVATE_KEY`   | EdDSA private key for signing internal tokens (PEM)                                                       |
-| `CORS_ORIGIN`                | Comma-separated allowed origins                                                                           |
-| `JWT_REFRESH_REMEMBER_DAYS`  | "remember me" refresh lifetime in days (default 30)                                                       |
-| `SSO_<NAME>_*`               | OIDC provider config (issuer/client_id/secret/redirect_uri/…); see `.env.example`. Secrets live ONLY here |
-| `SSO_STATE_SECRET`           | Signs the OIDC transaction & logout-hint cookies (falls back to `JWT_REFRESH_SECRET`)                     |
-| `SSO_ALLOW_INSECURE_ISSUERS` | Dev-only: allow http/loopback issuers. Never enable in production                                         |
+| Var                          | Purpose                                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GATEWAY_PORT`               | Listen port (default 3100)                                                                                                                                                                             |
+| `API_BASE_URL`               | Upstream API base (default `http://api:3200`)                                                                                                                                                          |
+| `INTERNAL_JWT_PRIVATE_KEY`   | EdDSA private key for signing internal tokens (PEM)                                                                                                                                                    |
+| `CORS_ORIGIN`                | Comma-separated allowed origins                                                                                                                                                                        |
+| `JWT_REFRESH_REMEMBER_DAYS`  | "remember me" refresh lifetime in days (default 30)                                                                                                                                                    |
+| `SSO_<NAME>_*`               | OIDC provider config (issuer/client_id/secret/redirect_uri/…); see `.env.example`. Secrets live ONLY here                                                                                              |
+| `SAML_<NAME>_*`              | SAML provider config (entry_point/idp_issuer/idp_cert/callback_url/**allowed_domains** required, …); see `.env.example`. `_ALLOWED_DOMAINS` is mandatory; `_DECRYPTION_PVK` is a secret kept ONLY here |
+| `SSO_STATE_SECRET`           | Signs the OIDC **and SAML** transaction & logout-hint cookies (falls back to `JWT_REFRESH_SECRET`)                                                                                                     |
+| `SSO_ALLOW_INSECURE_ISSUERS` | Dev-only: allow http/loopback issuers (OIDC & SAML). Never enable in production; metadata/link-local/0.0.0.0 stay blocked regardless                                                                   |
 
 **SSO hard rule:** federated login still ends in the standard local session — the
 api keeps trusting only the internal EdDSA JWT, never an IdP token. Client secrets
@@ -90,5 +111,10 @@ the security-critical units. Run: `npm run test:gateway`.
 End-to-end specs (`*.e2e.spec.ts`) spin up a **real mock OIDC provider**
 (`oauth2-mock-server`) and exercise the full SSO handshake (discovery, PKCE,
 state, nonce, ID-token JWKS validation) plus an attack case (tampered state →
-rejection). They are excluded from the unit suite (port binding / real HTTP) and
-run with `npm run test:e2e`.
+rejection). For SAML, `saml-flow.e2e.spec.ts` stands up a throwaway self-signed
+test IdP that signs real Responses/Assertions (`xml-crypto`) and runs the happy
+path plus a 14-case attack suite (unsigned/partial-signature, rogue-key, XSW,
+NameID comment injection, replay, IdP-initiated, InResponseTo mismatch, wrong
+audience, expired, mix-up issuer, domain outside allowlist, external RelayState,
+transient NameID). The api boundary is mocked, so no Postgres/network. They are
+excluded from the unit suite and run with `npm run test:e2e`.

@@ -13,9 +13,15 @@ import {
   setLogoutHintCookie,
 } from '@gateway/sso/sso-logout.service';
 import {
-  getProviderConfig,
+  clearSamlLogoutHintCookie,
+  readSamlLogoutHint,
+} from '@gateway/sso/saml-logout.service';
+import { getProviderConfig } from '@gateway/sso/provider-registry';
+import {
+  getFederatedProvider,
   listPublicProviders,
-} from '@gateway/sso/provider-registry';
+} from '@gateway/sso/federated-registry';
+import samlController from '@gateway/controllers/saml.controller';
 import {
   clearTransactionCookie,
   readTransaction,
@@ -36,15 +42,21 @@ class SsoController {
     HttpResponser.successJson(res, listPublicProviders());
 
   /**
-   * Start the Authorization Code + PKCE flow: mint state/nonce/PKCE, stash
-   * them in the signed transaction cookie, and redirect to the IdP.
+   * Unified federated login entry point: dispatches by the provider's
+   * protocol. SAML providers are handled by `saml.controller.ts`; OIDC starts
+   * the Authorization Code + PKCE flow — mint state/nonce/PKCE, stash them in
+   * the signed transaction cookie, and redirect to the IdP.
    */
   login = async (req: Request, res: Response) => {
     const providerId = req.params.provider as string;
-    const config = getProviderConfig(providerId);
-    if (!config) {
+    const fed = getFederatedProvider(providerId);
+    if (!fed) {
       return HttpResponser.errorJson(res, { message: 'Unknown provider' }, 404);
     }
+    if (fed.protocol === 'saml') {
+      return samlController.login(req, res);
+    }
+    const config = fed.config;
 
     try {
       const client = await getClient(providerId);
@@ -153,10 +165,15 @@ class SsoController {
 
   /**
    * RP-initiated logout. Always revokes the local refresh family and clears
-   * cookies FIRST (so a down IdP can never keep the local session alive), then
-   * — if the session is federated and the IdP supports end_session — redirects
-   * the browser to the provider to terminate the IdP session too. Best-effort:
-   * any IdP failure falls back to a same-site redirect.
+   * cookies FIRST (so a down IdP can never keep the local session alive),
+   * then — if the session is federated — best-effort terminates the IdP
+   * session too, dispatching by the protocol of whichever signed logout hint
+   * is present (OIDC end_session or SAML SLO). Any IdP failure falls back to
+   * a same-site redirect.
+   *
+   * IdP-initiated SLO (the IdP sending US a LogoutRequest) is out of scope —
+   * documented in SECURITY.md together with its residual risk, mirroring the
+   * OIDC back-channel-logout decision.
    */
   logout = async (req: Request, res: Response) => {
     const requestId = randomUUID();
@@ -169,6 +186,8 @@ class SsoController {
 
     const hint = readLogoutHint(req);
     clearLogoutHintCookie(res);
+    const samlHint = readSamlLogoutHint(req);
+    clearSamlLogoutHintCookie(res);
     const fallback = safeReturnTo(req.query.returnTo);
 
     if (hint) {
@@ -189,6 +208,13 @@ class SsoController {
           /* IdP unreachable / no end_session — fall through to local redirect */
         }
       }
+    }
+
+    if (samlHint) {
+      // The local refresh family is already revoked above — this redirect is
+      // strictly best-effort and can never keep a session alive.
+      const sloUrl = await samlController.sloRedirectUrl(samlHint, fallback);
+      if (sloUrl) return res.redirect(sloUrl);
     }
     return res.redirect(fallback);
   };

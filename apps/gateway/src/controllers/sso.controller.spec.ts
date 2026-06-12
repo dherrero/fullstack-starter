@@ -3,7 +3,18 @@ import { Permission } from '@dto';
 
 vi.mock('@gateway/sso/provider-registry', () => ({
   getProviderConfig: vi.fn(),
+}));
+vi.mock('@gateway/sso/federated-registry', () => ({
   listPublicProviders: vi.fn(),
+  getFederatedProvider: vi.fn(),
+}));
+vi.mock('@gateway/controllers/saml.controller', () => ({
+  default: { login: vi.fn(), metadata: vi.fn(), sloRedirectUrl: vi.fn() },
+}));
+vi.mock('@gateway/sso/saml-logout.service', () => ({
+  setSamlLogoutHintCookie: vi.fn(),
+  clearSamlLogoutHintCookie: vi.fn(),
+  readSamlLogoutHint: vi.fn(),
 }));
 vi.mock('@gateway/sso/discovery', () => ({ getClient: vi.fn() }));
 vi.mock('@gateway/clients/api.client', () => ({
@@ -35,10 +46,16 @@ vi.mock('openid-client', () => ({
   },
 }));
 
+import { getProviderConfig } from '@gateway/sso/provider-registry';
 import {
-  getProviderConfig,
+  getFederatedProvider,
   listPublicProviders,
-} from '@gateway/sso/provider-registry';
+} from '@gateway/sso/federated-registry';
+import samlController from '@gateway/controllers/saml.controller';
+import {
+  clearSamlLogoutHintCookie,
+  readSamlLogoutHint,
+} from '@gateway/sso/saml-logout.service';
 import { getClient } from '@gateway/sso/discovery';
 import { ApiClient } from '@gateway/clients/api.client';
 import {
@@ -111,7 +128,7 @@ describe('SsoController', () => {
 
   describe('login', () => {
     it('404s for an unknown provider', async () => {
-      vi.mocked(getProviderConfig).mockReturnValue(undefined);
+      vi.mocked(getFederatedProvider).mockReturnValue(undefined);
       const res = mkRes();
       await ssoController.login(
         { params: { provider: 'nope' }, query: {} } as never,
@@ -121,8 +138,23 @@ describe('SsoController', () => {
       expect(setTransactionCookie).not.toHaveBeenCalled();
     });
 
+    it('dispatches SAML providers to the SAML controller', async () => {
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'saml',
+        config: { id: 'acme' },
+      } as never);
+      const res = mkRes();
+      const req = { params: { provider: 'acme' }, query: {} } as never;
+      await ssoController.login(req, res);
+      expect(samlController.login).toHaveBeenCalledWith(req, res);
+      expect(setTransactionCookie).not.toHaveBeenCalled();
+    });
+
     it('stores the transaction and redirects to the IdP with PKCE S256', async () => {
-      vi.mocked(getProviderConfig).mockReturnValue(config as never);
+      vi.mocked(getFederatedProvider).mockReturnValue({
+        protocol: 'oidc',
+        config,
+      } as never);
       const res = mkRes();
       await ssoController.login(
         {
@@ -335,6 +367,75 @@ describe('SsoController', () => {
       );
       expect(clearRefreshCookie).toHaveBeenCalledWith(res);
       expect(res.redirect).toHaveBeenCalledWith('/bye');
+    });
+
+    it('SAML session: revokes the family FIRST, then redirects to the IdP SLO', async () => {
+      vi.mocked(readLogoutHint).mockReturnValue(null);
+      vi.mocked(readSamlLogoutHint).mockReturnValue({
+        provider: 'acme',
+        nameId: 'subject-1',
+        sessionIndex: 'sess-1',
+      });
+      vi.mocked(samlController.sloRedirectUrl).mockResolvedValue(
+        'https://idp.acme.example/slo?SAMLRequest=xyz',
+      );
+      const res = mkRes();
+      await ssoController.logout({ query: {}, cookies: {} } as never, res);
+
+      // Local revocation + cookie cleanup happen before any IdP involvement.
+      expect(revokeCurrentRefreshFamily).toHaveBeenCalled();
+      expect(clearRefreshCookie).toHaveBeenCalledWith(res);
+      expect(clearSamlLogoutHintCookie).toHaveBeenCalledWith(res);
+      expect(res.redirect).toHaveBeenCalledWith(
+        'https://idp.acme.example/slo?SAMLRequest=xyz',
+      );
+    });
+
+    it('SAML session without SLO support: local logout only', async () => {
+      vi.mocked(readLogoutHint).mockReturnValue(null);
+      vi.mocked(readSamlLogoutHint).mockReturnValue({
+        provider: 'acme',
+        nameId: 'subject-1',
+      });
+      vi.mocked(samlController.sloRedirectUrl).mockResolvedValue(null);
+      const res = mkRes();
+      await ssoController.logout(
+        { query: { returnTo: '/bye' }, cookies: {} } as never,
+        res,
+      );
+      expect(revokeCurrentRefreshFamily).toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/bye');
+    });
+
+    it('stale dual hints: OIDC takes precedence, SAML SLO never runs', async () => {
+      // Should be impossible (a session is one protocol), but stale cookies
+      // could coexist: OIDC end_session wins and SAML is not contacted.
+      vi.mocked(readLogoutHint).mockReturnValue({
+        provider: 'okta',
+        idToken: 'tok',
+      });
+      vi.mocked(readSamlLogoutHint).mockReturnValue({
+        provider: 'acme',
+        nameId: 'subject-1',
+      });
+      vi.mocked(getProviderConfig).mockReturnValue(config as never);
+      const res = mkRes();
+      await ssoController.logout({ query: {}, cookies: {} } as never, res);
+      expect(res.redirect).toHaveBeenCalledWith(
+        'https://example.okta.com/logout?id_token_hint=x',
+      );
+      expect(samlController.sloRedirectUrl).not.toHaveBeenCalled();
+      // Both hint cookies are cleared regardless of which path redirects.
+      expect(clearSamlLogoutHintCookie).toHaveBeenCalledWith(res);
+    });
+
+    it('no hint of any protocol: plain local logout (no IdP round-trip)', async () => {
+      vi.mocked(readLogoutHint).mockReturnValue(null);
+      vi.mocked(readSamlLogoutHint).mockReturnValue(null);
+      const res = mkRes();
+      await ssoController.logout({ query: {}, cookies: {} } as never, res);
+      expect(samlController.sloRedirectUrl).not.toHaveBeenCalled();
+      expect(res.redirect).toHaveBeenCalledWith('/');
     });
   });
 });
