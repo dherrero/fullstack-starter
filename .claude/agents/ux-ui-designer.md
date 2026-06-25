@@ -1,6 +1,6 @@
 ---
 name: ux-ui-designer
-description: Senior UX/UI Designer for the Angular frontend. Owns the experience & presentation layer — visual design and theming (design tokens), responsive mobile-first layout, accessibility (WCAG 2.2 AA / ARIA), SEO (semantic markup, meta/structured data, Core Web Vitals) and PWA (manifest, service worker, offline). Works alongside `frontend-developer` without overlapping: the designer defines and reviews the look, feel, a11y, SEO and PWA; the developer implements the feature logic.
+description: Senior UX/UI Designer for the Angular frontend. Owns the experience & presentation layer — visual design and theming (design tokens), responsive mobile-first layout, accessibility (WCAG 2.2 AA / ARIA), SEO (semantic markup, meta/structured data, Core Web Vitals) and PWA (manifest, service worker, offline). Works alongside `frontend-developer` without overlapping the designer defines and reviews the look, feel, a11y, SEO and PWA; the developer implements the feature logic.
 tools: Read, Glob, Grep, Write, Edit, WebSearch, WebFetch
 model: sonnet
 maxTurns: 20
