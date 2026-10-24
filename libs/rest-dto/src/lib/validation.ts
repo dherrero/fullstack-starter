@@ -54,8 +54,15 @@ export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
 
 /**
  * Schema for the internal federated resolve/provision endpoint.
- * Called exclusively by the gateway after it has fully validated an OIDC
- * ID token. `.strict()` rejects extra keys (mass-assignment defense).
+ * Called exclusively by the gateway after it has fully validated an IdP
+ * assertion — either an OIDC ID token or a SAML 2.0 assertion.
+ * `.strict()` rejects extra keys (mass-assignment defense).
+ *
+ * `subject` covers both the OIDC `sub` claim and the SAML NameID
+ * (persistent format). The 255-char ceiling matches the `federated_identity`
+ * varchar(255) column; the SAML spec allows persistent NameIDs up to 256 chars,
+ * so any IdP that emits a 256-char NameID will be rejected at the schema layer —
+ * this is intentional and the column size should be the source of truth.
  */
 export const resolveFederatedUserSchema = z
   .object({

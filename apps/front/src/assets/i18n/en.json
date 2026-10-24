@@ -26,7 +26,8 @@
     "sso": {
       "or": "or continue with",
       "continueWith": "Continue with {{provider}}",
-      "error": "Single sign-on failed. Please try again."
+      "error": "Single sign-on failed. Please try again.",
+      "samlBadge": "Enterprise SSO"
     }
   },
   "unauthorized": {

@@ -4,9 +4,12 @@ import {
   buildRegistryFromEnv,
   getProviderConfig,
   isSsoEnabled,
-  listPublicProviders,
   resetRegistryCache,
 } from './provider-registry';
+import {
+  listPublicProviders,
+  resetFederatedRegistryCache,
+} from './federated-registry';
 
 const okta = {
   SSO_OKTA_ISSUER: 'https://example.okta.com',
@@ -112,14 +115,34 @@ describe('buildRegistryFromEnv', () => {
       expect(() => buildRegistryFromEnv(okta)).not.toThrow();
     });
 
-    it('allows insecure issuers only behind the explicit dev escape hatch', () => {
-      expect(() =>
-        buildRegistryFromEnv({
-          ...okta,
-          SSO_OKTA_ISSUER: 'http://localhost:8080',
-          SSO_ALLOW_INSECURE_ISSUERS: 'true',
-        }),
-      ).not.toThrow();
+    it('allows insecure/local issuers only behind the explicit dev escape hatch', () => {
+      // Dev setups run the IdP on localhost or a private docker network.
+      for (const issuer of ['http://localhost:8080', 'https://10.1.2.3']) {
+        expect(() =>
+          buildRegistryFromEnv({
+            ...okta,
+            SSO_OKTA_ISSUER: issuer,
+            SSO_ALLOW_INSECURE_ISSUERS: 'true',
+          }),
+        ).not.toThrow();
+      }
+    });
+
+    it('blocks link-local/cloud-metadata even with the dev escape hatch', () => {
+      // Tier-1 block is unconditional — no escape hatch reaches 169.254.x.x.
+      for (const issuer of [
+        'https://169.254.169.254/meta',
+        'http://169.254.169.254/meta',
+        'https://0.0.0.0',
+      ]) {
+        expect(() =>
+          buildRegistryFromEnv({
+            ...okta,
+            SSO_OKTA_ISSUER: issuer,
+            SSO_ALLOW_INSECURE_ISSUERS: 'true',
+          }),
+        ).toThrow(/not allowed/);
+      }
     });
   });
 });
@@ -129,6 +152,7 @@ describe('public accessors (process.env-backed)', () => {
   afterEach(() => {
     process.env = { ...saved };
     resetRegistryCache();
+    resetFederatedRegistryCache();
   });
 
   it('listPublicProviders exposes only id/displayName/iconKey — no secrets', () => {
@@ -141,7 +165,12 @@ describe('public accessors (process.env-backed)', () => {
 
     const list = listPublicProviders();
     expect(list).toEqual([
-      { id: 'okta', displayName: 'Okta', iconKey: 'okta-logo' },
+      {
+        id: 'okta',
+        displayName: 'Okta',
+        iconKey: 'okta-logo',
+        protocol: 'oidc',
+      },
     ]);
     const serialised = JSON.stringify(list);
     expect(serialised).not.toContain('secret-okta');
